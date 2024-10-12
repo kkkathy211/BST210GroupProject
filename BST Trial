@@ -1,12 +1,94 @@
 # Libraries
 library(ggplot2)
 library(dplyr)
+# Set working directory and load data
+getwd()
+# if you are running this .R file in Rstudio
+# install.packages("rstudioapi")
+library(rstudioapi)
+getActiveDocumentContext()$path
+working_path <- dirname(getActiveDocumentContext()$path)
+setwd(working_path)
+getwd()
 
 # Load data
-data <- read.csv("/Users/spectremac/Desktop/METABRIC_RNA_Mutation.csv",na.strings = c("", " "))
-# Clean data (remove rows with missing data)
-colSums(is.na(data))
-# Lym + tumor size + BRCA1
+data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
+
 newdata <- data[, c(20,29,32)]
 newdata <- na.omit(newdata)
+head(newdata)
 
+summary(newdata)
+
+
+# scatter plots
+plot(newdata$brca1, newdata$tumor_size, ylab = "tumor size (mm)",  xlab = "brca1 expression (z-score)")
+
+# first model
+lm1 = lm(tumor_size ~ brca1, data = newdata)
+summary(lm1)
+confint(lm1)
+# correlation
+cor.test(newdata$brca1, newdata$tumor_size)
+
+lm1 = lm(tumor_size ~ brca1, data = newdata)
+
+plot(lm1)
+
+res<-residuals(lm1)
+fit<-fitted.values(lm1)
+mystd <- res/(sqrt(sum(res^2)/(length(res)-1-4))) # standardized 
+stdres<-rstandard(lm1) # internally stud
+stures<-rstudent(lm1) # externally stud
+hat<-hatvalues(lm1)
+cooksd<-cooks.distance(lm1)
+
+# Assessing normality of the residuals
+hist(stures,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stures)
+abline(0,1)
+shapiro.test(stures)
+
+hist(stdres,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stdres)
+abline(0,1)
+
+# Examining observations with large internally/externally studentized residuals
+d2<-newdata[,c("brca1","tumor_size")]
+summary(d2[,-1])
+d3<-cbind(d2,stdres,stures)
+d3[abs(stdres)>2,]
+d3[abs(stures)>2,]
+d3[abs(stdres)>3,]
+d3[abs(stures)>3,]
+
+summary(hat)
+mean(hat)
+(thresh<-length(coef(lm1))/length(hat)) #(p+1)/n
+
+# Creating a histogram & boxplot of the hat values
+hist(hat)
+boxplot(hat)
+d2[hat>2*thresh,]
+d2[hat>4*thresh,]
+
+# See chart created in 2D for assessment of Cook's distances
+summary(cooksd)
+
+# Creating a histogram & boxplot of the Cook's distances
+hist(cooksd)
+boxplot(cooksd)
+n<-length(cooksd)
+d3<-cbind(d2,stures,hat,cooksd)
+d3[cooksd>4/n,]
+d3[cooksd>12/n,]
+
+# Compare the model run on all observations to the model with outliers omitted
+summary(lm(tumor_size ~ brca1, data = newdata))
+hat_thresh<-length(coef(lm1))/length(hat)
+newdata_no_outliers<-subset(newdata,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
+#how many outliers were dropped?
+nrow(newdata)-nrow(newdata_no_outliers)
+summary(lm(tumor_size ~ brca1, data = newdata,dat=newdata_no_outliers))
