@@ -7,3 +7,4 @@ data <- read.csv("/Users/spectremac/Desktop/METABRIC_RNA_Mutation.csv",na.string
 # Clean data (remove rows with missing data)
 colSums(is.na(data))
 data <- na.omit(data)
+newdata <- data[, c(20,29,32)]
