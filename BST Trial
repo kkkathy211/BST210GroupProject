@@ -6,5 +6,7 @@ library(dplyr)
 data <- read.csv("/Users/spectremac/Desktop/METABRIC_RNA_Mutation.csv",na.strings = c("", " "))
 # Clean data (remove rows with missing data)
 colSums(is.na(data))
-data <- na.omit(data)
+# Lym + tumor size + BRCA1
 newdata <- data[, c(20,29,32)]
+newdata <- na.omit(newdata)
+
