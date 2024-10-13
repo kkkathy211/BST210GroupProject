@@ -47,7 +47,7 @@ hist(lymph_nodes_pos)
 newdata$tumor_size_log <- log(newdata$tumor_size)
 
 # scatter plots
-plot(newdata$brca1, newdata$tumor_size_log, ylab = "tumor size (mm)",  xlab = "brca1 expression (z-score)")
+plot(newdata$brca1, newdata$tumor_size_log, ylab = "log of tumor size",  xlab = "brca1 expression (z-score)")
 
 # first model
 lm1 = lm(tumor_size_log ~ brca1, data = newdata)
@@ -114,7 +114,6 @@ d3[cooksd>12/n,]
 summary(lm(tumor_size_log ~ brca1, data = newdata))
 hat_thresh<-length(coef(lm1))/length(hat)
 newdata_no_outliers<-subset(newdata,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
-#how many outliers were dropped?
 nrow(newdata)-nrow(newdata_no_outliers)
 summary(lm(tumor_size_log ~ brca1, data = newdata,dat=newdata_no_outliers))
 
