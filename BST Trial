@@ -4,7 +4,6 @@ library(dplyr)
 library(gam)
 library(splines)
 library(splines2)  
-library(mgcv)
 
 # Set working directory and load data
 getwd()
@@ -107,18 +106,29 @@ newdata <- newdata[order(newdata$brca1),]
 #linear model
 model_linear <- lm(tumor_size ~ brca1, data=newdata)
 summary(model_linear)
+aic_linear <- extractAIC(model_linear)[2]  # Extract AIC value from the model
+adj_r2_linear <- summary(model_linear)$adj.r.squared
 
 #quadratic model
 model_quad <- lm(tumor_size ~ brca1 + I(brca1^2), data=newdata)
 summary(model_quad)
+aic_quad <- extractAIC(model_quad)[2]  # Extract AIC value from the model
+adj_r2_quad <- summary(model_quad)$adj.r.squared
 
 #spline
 model_spline=lm(tumor_size~bSpline(brca1,df=4),data=newdata)
 summary(model_spline)
+extractAIC(model_spline)
+aic_spline <- extractAIC(model_spline)[2]  # Extract AIC value from the model
+adj_r2_spline <- summary(model_spline)$adj.r.squared
 
 #gam
+newdata$brca1 <- scale(newdata$brca1)
 model_gam <- gam(tumor_size~s(brca1,4),data=newdata)
 summary(model_gam)
+coef(model_gam)
+aic_gam <- extractAIC(model_gam)[2]  # Extract AIC value from the model
+adj_r2_gam <- NA
 
 plot(tumor_size ~ brca1, data=newdata)
 plot(tumor_size ~ brca1, data=newdata, col=rgb(0, 0, 0, 0.3), pch=16)
@@ -128,3 +138,20 @@ lines(newdata$brca1,fitted(model_spline), col="green")
 lines(newdata$brca1,fitted(model_gam), col="orange")
 legend(x="topleft",legend=c("Linear","Quadratic","Spline", "GAM"),fill=c("red","blue","green","orange"))
 
+# Create a matrix to store the results
+result_matrix <- matrix(c(
+  aic_linear, adj_r2_linear,
+  aic_quad, adj_r2_quad,
+  aic_spline, adj_r2_spline,
+  aic_gam, adj_r2_gam
+), ncol = 2, byrow = TRUE)
+
+# Add row and column names for clarity
+rownames(result_matrix) <- c("Linear Model", "Quadratic Model", "Spline Model", "GAM Model")
+colnames(result_matrix) <- c("AIC", "Adjusted R²")
+
+# Convert matrix to data frame for better readability
+result_df <- as.data.frame(result_matrix)
+
+# Print the result matrix
+print(result_df)
