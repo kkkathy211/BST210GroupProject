@@ -18,7 +18,7 @@ getwd()
 # Load data
 data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
 
-newdata <- data[, c(20,29,32)]
+newdata <- data[, c(2,20,29,32,33)]
 newdata <- na.omit(newdata)
 head(newdata)
 
