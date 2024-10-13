@@ -92,3 +92,26 @@ newdata_no_outliers<-subset(newdata,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<
 #how many outliers were dropped?
 nrow(newdata)-nrow(newdata_no_outliers)
 summary(lm(tumor_size ~ brca1, data = newdata,dat=newdata_no_outliers))
+
+##***************##
+####Statistical Model####
+##***************##
+
+newdata <- newdata[order(newdata$brca1),]
+
+#linear model
+model_linear <- lm(tumor_size ~ brca1, data=newdata)
+summary(model_linear)
+
+#quadratic model
+model_quad <- lm(tumor_size ~ brca1 + I(brca1^2), data=newdata)
+summary(model_quad)
+
+#spline
+model_spline=lm(tumor_size~bSpline(brca1,df=4),data=newdata)
+summary(model_spline)
+
+#gam
+model_gam <- gam(tumor_size~s(brca1,3),data=newdata)
+model_gam <- gam(tumor_size ~ brca1, data = newdata)
+summary(model_gam)
