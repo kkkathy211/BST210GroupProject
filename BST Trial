@@ -207,3 +207,7 @@ result_df <- as.data.frame(result_matrix)
 
 # Print the result matrix
 print(result_df)
+
+#rough model with all covariates included
+model_test <- lm(tumor_size_log~brca1+age_at_diagnosis+brca2+palb2+tp53+atm+chek2+bard1+rb1+aurka,data=newdata)
+summary(model_test)
