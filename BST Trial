@@ -1,6 +1,11 @@
 # Libraries
 library(ggplot2)
 library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(mgcv)
+
 # Set working directory and load data
 getwd()
 # if you are running this .R file in Rstudio
@@ -114,3 +119,12 @@ summary(model_spline)
 #gam
 model_gam <- gam(tumor_size~s(brca1,4),data=newdata)
 summary(model_gam)
+
+plot(tumor_size ~ brca1, data=newdata)
+plot(tumor_size ~ brca1, data=newdata, col=rgb(0, 0, 0, 0.3), pch=16)
+lines(newdata$brca1,fitted(model_linear), col="red")
+lines(newdata$brca1,fitted(model_quad), col="blue")
+lines(newdata$brca1,fitted(model_spline), col="green")
+lines(newdata$brca1,fitted(model_gam), col="orange")
+legend(x="topleft",legend=c("Linear","Quadratic","Spline", "GAM"),fill=c("red","blue","green","orange"))
+
