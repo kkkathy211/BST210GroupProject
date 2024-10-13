@@ -75,10 +75,7 @@ pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + 
       cex = 0.3,
       col = adjustcolor("light blue", alpha.f = 0.3))
 
-
-
-############Clementine's code#############
-
+# we decide to transform the tumor size to be log(tumor_size)
 newdata$tumor_size_log <- log(newdata$tumor_size)
 
 # scatter plots
