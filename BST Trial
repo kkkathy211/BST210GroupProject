@@ -4,6 +4,15 @@ library(dplyr)
 library(gam)
 library(splines)
 library(splines2)  
+library(DAAG)
+library(glmnet)
+library(leaps)
+#library(StepReg)
+library(foreign)
+library(Hmisc)
+library(broom)
+library(caret)
+#library(vip)
 
 # Set working directory and load data
 getwd()
@@ -22,20 +31,32 @@ newdata <- data[, c(2,20,29,32,33,34,36,37,39,43,52,152)]
 newdata <- na.omit(newdata)
 head(newdata)
 
+tumor_size <- newdata$tumor_size
+lymph_nodes_pos <- newdata$lymph_nodes_examined_positive
+names(newdata)
 summary(newdata)
+summary(tumor_size)
+par(mfrow=c(1,2))
+hist(tumor_size)
+hist(log(tumor_size))
 
+hist(lymph_nodes_pos)
+
+############Clementine's code#############
+
+newdata$tumor_size_log <- log(newdata$tumor_size)
 
 # scatter plots
-plot(newdata$brca1, newdata$tumor_size, ylab = "tumor size (mm)",  xlab = "brca1 expression (z-score)")
+plot(newdata$brca1, newdata$tumor_size_log, ylab = "tumor size (mm)",  xlab = "brca1 expression (z-score)")
 
 # first model
-lm1 = lm(tumor_size ~ brca1, data = newdata)
+lm1 = lm(tumor_size_log ~ brca1, data = newdata)
 summary(lm1)
 confint(lm1)
 # correlation
-cor.test(newdata$brca1, newdata$tumor_size)
+cor.test(newdata$brca1, newdata$tumor_size_log)
 
-lm1 = lm(tumor_size ~ brca1, data = newdata)
+lm1 = lm(tumor_size_log ~ brca1, data = newdata)
 
 plot(lm1)
 
@@ -60,7 +81,7 @@ qqnorm(stdres)
 abline(0,1)
 
 # Examining observations with large internally/externally studentized residuals
-d2<-newdata[,c("brca1","tumor_size")]
+d2<-newdata[,c("brca1","tumor_size_log")]
 summary(d2[,-1])
 d3<-cbind(d2,stdres,stures)
 d3[abs(stdres)>2,]
@@ -90,12 +111,12 @@ d3[cooksd>4/n,]
 d3[cooksd>12/n,]
 
 # Compare the model run on all observations to the model with outliers omitted
-summary(lm(tumor_size ~ brca1, data = newdata))
+summary(lm(tumor_size_log ~ brca1, data = newdata))
 hat_thresh<-length(coef(lm1))/length(hat)
 newdata_no_outliers<-subset(newdata,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
 #how many outliers were dropped?
 nrow(newdata)-nrow(newdata_no_outliers)
-summary(lm(tumor_size ~ brca1, data = newdata,dat=newdata_no_outliers))
+summary(lm(tumor_size_log ~ brca1, data = newdata,dat=newdata_no_outliers))
 
 ##***************##
 ####Statistical Model####
@@ -104,19 +125,19 @@ summary(lm(tumor_size ~ brca1, data = newdata,dat=newdata_no_outliers))
 newdata <- newdata[order(newdata$brca1),]
 
 #linear model
-model_linear <- lm(tumor_size ~ brca1, data=newdata)
+model_linear <- lm(tumor_size_log ~ brca1, data=newdata)
 summary(model_linear)
 aic_linear <- extractAIC(model_linear)[2]  # Extract AIC value from the model
 adj_r2_linear <- summary(model_linear)$adj.r.squared
 
 #quadratic model
-model_quad <- lm(tumor_size ~ brca1 + I(brca1^2), data=newdata)
+model_quad <- lm(tumor_size_log ~ brca1 + I(brca1^2), data=newdata)
 summary(model_quad)
 aic_quad <- extractAIC(model_quad)[2]  # Extract AIC value from the model
 adj_r2_quad <- summary(model_quad)$adj.r.squared
 
 #spline
-model_spline=lm(tumor_size~bSpline(brca1,df=4),data=newdata)
+model_spline=lm(tumor_size_log~bSpline(brca1,df=4),data=newdata)
 summary(model_spline)
 extractAIC(model_spline)
 aic_spline <- extractAIC(model_spline)[2]  # Extract AIC value from the model
@@ -124,14 +145,14 @@ adj_r2_spline <- summary(model_spline)$adj.r.squared
 
 #gam
 newdata$brca1 <- scale(newdata$brca1)
-model_gam <- gam(tumor_size~s(brca1,4),data=newdata)
+model_gam <- gam(tumor_size_log~s(brca1,4),data=newdata)
 summary(model_gam)
 coef(model_gam)
 aic_gam <- extractAIC(model_gam)[2]  # Extract AIC value from the model
 adj_r2_gam <- NA
 
-plot(tumor_size ~ brca1, data=newdata)
-plot(tumor_size ~ brca1, data=newdata, col=rgb(0, 0, 0, 0.3), pch=16)
+plot(tumor_size_log ~ brca1, data=newdata)
+plot(tumor_size_log ~ brca1, data=newdata, col=rgb(0, 0, 0, 0.3), pch=16)
 lines(newdata$brca1,fitted(model_linear), col="red")
 lines(newdata$brca1,fitted(model_quad), col="blue")
 lines(newdata$brca1,fitted(model_spline), col="green")
@@ -155,6 +176,3 @@ result_df <- as.data.frame(result_matrix)
 
 # Print the result matrix
 print(result_df)
-
-
-
