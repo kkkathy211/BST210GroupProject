@@ -36,11 +36,46 @@ lymph_nodes_pos <- newdata$lymph_nodes_examined_positive
 names(newdata)
 summary(newdata)
 summary(tumor_size)
-par(mfrow=c(1,2))
-hist(tumor_size)
-hist(log(tumor_size))
 
-hist(lymph_nodes_pos)
+# Some EDA (exploratory data analysis of outcome tumor size, and predictors)
+## The histogram of tumor size
+par(mfrow=c(1,2)) 
+hist(newdata$tumor_size)
+hist(log(newdata$tumor_size))
+## The scatterplot of outcome to predictor and exposure and each of the covariates
+par(mfrow=c(2,2)) 
+scatter.smooth(newdata$tumor_size~newdata$brca1) 
+scatter.smooth(newdata$tumor_size~newdata$age_at_diagnosis)
+scatter.smooth(newdata$tumor_size~newdata$brca2)
+scatter.smooth(newdata$tumor_size~newdata$palb2)
+scatter.smooth(newdata$tumor_size~newdata$tp53)
+scatter.smooth(newdata$tumor_size~newdata$atm)
+scatter.smooth(newdata$tumor_size~newdata$chek2)
+scatter.smooth(newdata$tumor_size~newdata$bard1)
+scatter.smooth(newdata$tumor_size~newdata$rb1)
+scatter.smooth(newdata$tumor_size~newdata$aurka)
+## The histogram of all the variables of interest
+hist(newdata$age_at_diagnosis)
+hist(newdata$brca1)
+hist(newdata$brca2)
+hist(newdata$palb2)
+hist(newdata$tp53)
+hist(newdata$atm)
+hist(newdata$chek2)
+hist(newdata$bard1)
+hist(newdata$rb1)
+hist(newdata$aurka)
+## The pairwise scatterplot of covariates 
+pairs(tumor_size ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("grey", alpha.f = 0.3))
+pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("light blue", alpha.f = 0.3))
+
+
 
 ############Clementine's code#############
 
