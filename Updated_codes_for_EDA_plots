@@ -1,0 +1,173 @@
+# Some EDA (exploratory data analysis of outcome tumor size, and predictors)
+## The histogram of tumor size
+par(mfrow=c(1,2)) 
+hist(newdata$tumor_size, main = "Histogram of Tumor Size", xlab = "Tumor Size (mm)", col = "grey")
+hist(log(newdata$tumor_size), main = "Histogram of Tumor Size", xlab = "Log Tumor Size", col = "skyblue")
+## The scatterplot of outcome to predictor and exposure and each of the covariates
+par(mfrow=c(2,2)) 
+
+# Corrected scatter.smooth plots with tumor size
+scatter.smooth(newdata$tumor_size ~ newdata$brca1, 
+               main = "Tumor Size vs BRCA1", 
+               xlab = "BRCA1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$age_at_diagnosis, 
+               main = "Tumor Size vs Age", 
+               xlab = "Age", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$brca2, 
+               main = "Tumor Size vs BRCA2", 
+               xlab = "BRCA2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$palb2, 
+               main = "Tumor Size vs PALB2", 
+               xlab = "PALB2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$tp53, 
+               main = "Tumor Size vs TP53", 
+               xlab = "TP53 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$atm, 
+               main = "Tumor Size vs ATM", 
+               xlab = "ATM Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$chek2, 
+               main = "Tumor Size vs CHEK2", 
+               xlab = "CHEK2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$bard1, 
+               main = "Tumor Size vs BARD1", 
+               xlab = "BARD1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$rb1, 
+               main = "Tumor Size vs RB1", 
+               xlab = "RB1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(newdata$tumor_size ~ newdata$aurka, 
+               main = "Tumor Size vs AURKA", 
+               xlab = "AURKA Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+## The histogram of all the variables of interest of tumor size
+hist(newdata$age_at_diagnosis, main = "Histogram of Age at Diagnosis", xlab = "Age at Diagnosis", col = "grey")
+hist(newdata$brca1, main = "Histogram of BRCA1", xlab = "BRCA1", col = "grey")
+hist(newdata$brca2, main = "Histogram of BRCA2", xlab = "BRCA2", col = "grey")
+hist(newdata$palb2, main = "Histogram of PALB2", xlab = "PALB2", col = "grey")
+hist(newdata$tp53, main = "Histogram of TP53", xlab = "TP53", col = "grey")
+hist(newdata$atm, main = "Histogram of ATM", xlab = "ATM", col = "grey")
+hist(newdata$chek2, main = "Histogram of CHEK2", xlab = "CHEK2", col = "grey")
+hist(newdata$bard1, main = "Histogram of BARD1", xlab = "BARD1", col = "grey")
+hist(newdata$rb1, main = "Histogram of RB1", xlab = "RB1", col = "grey")
+hist(newdata$aurka, main = "Histogram of AURKA", xlab = "AURKA", col = "grey")
+
+# Corrected scatter.smooth plots with log tumor size
+scatter.smooth(newdata$tumor_size_log ~ newdata$brca1, 
+               main = "Tumor Size vs BRCA1", 
+               xlab = "BRCA1 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$age_at_diagnosis, 
+               main = "Tumor Size vs Age", 
+               xlab = "Age", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$brca2, 
+               main = "Tumor Size vs BRCA2", 
+               xlab = "BRCA2 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$palb2, 
+               main = "Tumor Size vs PALB2", 
+               xlab = "PALB2 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$tp53, 
+               main = "Tumor Size vs TP53", 
+               xlab = "TP53 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$atm, 
+               main = "Tumor Size vs ATM", 
+               xlab = "ATM Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$chek2, 
+               main = "Tumor Size vs CHEK2", 
+               xlab = "CHEK2 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$bard1, 
+               main = "Tumor Size vs BARD1", 
+               xlab = "BARD1 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$rb1, 
+               main = "Tumor Size vs RB1", 
+               xlab = "RB1 Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+scatter.smooth(newdata$tumor_size_log ~ newdata$aurka, 
+               main = "Tumor Size vs AURKA", 
+               xlab = "AURKA Expression", 
+               ylab = "Log Tumor Size", 
+               col = "light blue")
+
+
+## The pairwise scatterplot of covariates 
+# Save the first scatterplot as a PNG
+png("pairwise_scatterplot_tumor_size_covariates.png", width = 1200, height = 1200)
+pairs(tumor_size ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("grey", alpha.f = 0.3),
+      main = "Pairwise Scatterplot of Tumor Size and Covariates")
+dev.off()
+
+# Save the second scatterplot as a PNG
+png("pairwise_scatterplot_log_tumor_size_covariates.png", width = 1200, height = 1200)
+pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("light blue", alpha.f = 0.3),
+      main = "Pairwise Scatterplot of Log-Transformed Tumor Size and Covariates")
+dev.off()
+
+pairs(tumor_size ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("grey", alpha.f = 0.3),
+      main = "Pairwise Scatterplot of Tumor Size and Covariates")
+
+pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("light blue", alpha.f = 0.3),
+      main = "Pairwise Scatterplot of Log-Transformed Tumor Size and Covariates")
