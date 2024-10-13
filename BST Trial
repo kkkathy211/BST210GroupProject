@@ -112,6 +112,5 @@ model_spline=lm(tumor_size~bSpline(brca1,df=4),data=newdata)
 summary(model_spline)
 
 #gam
-model_gam <- gam(tumor_size~s(brca1,3),data=newdata)
-model_gam <- gam(tumor_size ~ brca1, data = newdata)
+model_gam <- gam(tumor_size~s(brca1,4),data=newdata)
 summary(model_gam)
