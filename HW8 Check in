@@ -1,1 +1,223 @@
 BST210 HW8 Check in
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(DAAG)
+#library(glmnet)
+#library(leaps)
+#library(StepReg)
+library(broom)
+#library(caret)
+#library(vip)
+
+# Set working directory and load data
+getwd()
+# if you are running this .R file in Rstudio
+# install.packages("rstudioapi")
+library(rstudioapi)
+getActiveDocumentContext()$path
+working_path <- dirname(getActiveDocumentContext()$path)
+setwd(working_path)
+getwd()
+
+# Load data
+data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
+
+newdata <- data[, c(2,20,29,32,33,34,36,37,39,43,52,152)]
+newdata <- na.omit(newdata)
+head(newdata)
+
+tumor_size <- newdata$tumor_size
+lymph_nodes_pos <- newdata$lymph_nodes_examined_positive
+names(newdata)
+summary(newdata)
+summary(tumor_size)
+
+# Some EDA (exploratory data analysis of outcome tumor size, and predictors)
+## The histogram of tumor size
+par(mfrow=c(1,2)) 
+hist(newdata$tumor_size)
+hist(log(newdata$tumor_size))
+## The scatterplot of outcome to predictor and exposure and each of the covariates
+par(mfrow=c(2,2)) 
+scatter.smooth(newdata$tumor_size~newdata$brca1) 
+scatter.smooth(newdata$tumor_size~newdata$age_at_diagnosis)
+scatter.smooth(newdata$tumor_size~newdata$brca2)
+scatter.smooth(newdata$tumor_size~newdata$palb2)
+scatter.smooth(newdata$tumor_size~newdata$tp53)
+scatter.smooth(newdata$tumor_size~newdata$atm)
+scatter.smooth(newdata$tumor_size~newdata$chek2)
+scatter.smooth(newdata$tumor_size~newdata$bard1)
+scatter.smooth(newdata$tumor_size~newdata$rb1)
+scatter.smooth(newdata$tumor_size~newdata$aurka)
+## The histogram of all the variables of interest
+hist(newdata$age_at_diagnosis)
+hist(newdata$brca1)
+hist(newdata$brca2)
+hist(newdata$palb2)
+hist(newdata$tp53)
+hist(newdata$atm)
+hist(newdata$chek2)
+hist(newdata$bard1)
+hist(newdata$rb1)
+hist(newdata$aurka)
+## The pairwise scatterplot of covariates 
+pairs(tumor_size ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("grey", alpha.f = 0.3))
+pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + brca2 + palb2 + tp53 + atm + chek2 + bard1 + rb1 + aurka,
+      data = newdata,
+      cex = 0.3,
+      col = adjustcolor("light blue", alpha.f = 0.3))
+
+
+
+############Clementine's code#############
+
+newdata$tumor_size_log <- log(newdata$tumor_size)
+
+# scatter plots
+par(mfrow=(c(1,1)))
+plot(newdata$brca1, newdata$tumor_size_log, ylab = "log of tumor size",  xlab = "brca1 expression (z-score)", main = "Relationship between BRCA1 expression and log of tumor size")
+
+# first model
+lm1 = lm(tumor_size_log ~ brca1, data = newdata)
+summary(lm1)
+confint(lm1)
+# correlation
+cor.test(newdata$brca1, newdata$tumor_size_log)
+
+lm1 = lm(tumor_size_log ~ brca1, data = newdata)
+
+par(mfrow=(c(2,2)))
+plot(lm1)
+
+res<-residuals(lm1)
+fit<-fitted.values(lm1)
+mystd <- res/(sqrt(sum(res^2)/(length(res)-1-4))) # standardized 
+stdres<-rstandard(lm1) # internally stud
+stures<-rstudent(lm1) # externally stud
+hat<-hatvalues(lm1)
+cooksd<-cooks.distance(lm1)
+
+# Assessing normality of the residuals
+hist(stures,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stures)
+abline(0,1)
+shapiro.test(stures)
+
+hist(stdres,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stdres)
+abline(0,1)
+
+# Examining observations with large internally/externally studentized residuals
+d2<-newdata[,c("brca1","tumor_size_log")]
+summary(d2[,-1])
+d3<-cbind(d2,stdres,stures)
+d3[abs(stdres)>2,]
+d3[abs(stures)>2,]
+d3[abs(stdres)>3,]
+d3[abs(stures)>3,]
+
+summary(hat)
+mean(hat)
+(thresh<-length(coef(lm1))/length(hat)) #(p+1)/n
+
+# Creating a histogram & boxplot of the hat values
+hist(hat)
+boxplot(hat, main = "Boxplot of Hat Values")
+d2[hat>2*thresh,]
+d2[hat>4*thresh,]
+
+# See chart created in 2D for assessment of Cook's distances
+summary(cooksd)
+
+# Creating a histogram & boxplot of the Cook's distances
+hist(cooksd)
+boxplot(cooksd, main = "Boxplot of the Cook's distances")
+n<-length(cooksd)
+d3<-cbind(d2,stures,hat,cooksd)
+d3[cooksd>4/n,]
+d3[cooksd>12/n,]
+
+# Compare the model run on all observations to the model with outliers omitted
+summary(lm(tumor_size_log ~ brca1, data = newdata))
+hat_thresh<-length(coef(lm1))/length(hat)
+newdata_no_outliers<-subset(newdata,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
+nrow(newdata)-nrow(newdata_no_outliers)
+summary(lm(tumor_size_log ~ brca1, data = newdata))
+summary(lm(tumor_size_log ~ brca1, data=newdata_no_outliers))
+
+##***************##
+####Statistical Model####
+##***************##
+
+newdata <- newdata[order(newdata$brca1),]
+
+#linear model
+model_linear <- lm(tumor_size_log ~ brca1, data=newdata)
+summary(model_linear)
+aic_linear <- extractAIC(model_linear)[2]  # Extract AIC value from the model
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+#quadratic model
+model_quad <- lm(tumor_size_log ~ brca1 + I(brca1^2), data=newdata)
+summary(model_quad)
+aic_quad <- extractAIC(model_quad)[2]  # Extract AIC value from the model
+adj_r2_quad <- summary(model_quad)$adj.r.squared
+
+#spline
+model_spline=lm(tumor_size_log~bSpline(brca1,df=4),data=newdata)
+summary(model_spline)
+extractAIC(model_spline)
+aic_spline <- extractAIC(model_spline)[2]  # Extract AIC value from the model
+adj_r2_spline <- summary(model_spline)$adj.r.squared
+
+#gam
+newdata$brca1 <- scale(newdata$brca1)
+model_gam <- gam(tumor_size_log~s(brca1,4),data=newdata)
+summary(model_gam)
+coef(model_gam)
+aic_gam <- extractAIC(model_gam)[2]  # Extract AIC value from the model
+adj_r2_gam <- NA
+
+par(mfrow=(c(1,1)))
+plot(tumor_size_log ~ brca1, data = newdata,
+     xlab = "BRCA1 Expression Level (z-score)",
+     ylab = "Log Tumor Size",
+     main = "Tumor Size vs. BRCA1 Expression",
+     col = rgb(0, 0, 0, 0.3),
+     pch = 16)
+lines(newdata$brca1,fitted(model_linear), col="red")
+lines(newdata$brca1,fitted(model_quad), col="blue")
+lines(newdata$brca1,fitted(model_spline), col="green")
+lines(newdata$brca1,fitted(model_gam), col="orange")
+legend(x="topleft",legend=c("Linear","Quadratic","Spline", "GAM"),fill=c("red","blue","green","orange"))
+
+# Create a matrix to store the results
+result_matrix <- matrix(c(
+  aic_linear, adj_r2_linear,
+  aic_quad, adj_r2_quad,
+  aic_spline, adj_r2_spline,
+  aic_gam, adj_r2_gam
+), ncol = 2, byrow = TRUE)
+
+# Add row and column names for clarity
+rownames(result_matrix) <- c("Linear Model", "Quadratic Model", "Spline Model", "GAM Model")
+colnames(result_matrix) <- c("AIC", "Adjusted R²")
+
+# Convert matrix to data frame for better readability
+result_df <- as.data.frame(result_matrix)
+
+# Print the result matrix
+print(result_df)
+
+#rough model with all covariates included
+model_test <- lm(tumor_size_log~brca1+age_at_diagnosis+brca2+palb2+tp53+atm+chek2+bard1+rb1+aurka,data=newdata)
+summary(model_test)
