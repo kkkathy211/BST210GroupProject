@@ -1,1 +1,48 @@
-EDA 
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(DAAG)
+#library(glmnet)
+#library(leaps)
+#library(StepReg)
+library(broom)
+#library(caret)
+#library(vip)
+
+# Set working directory and load data
+getwd()
+# if you are running this .R file in Rstudio
+# install.packages("rstudioapi")
+library(rstudioapi)
+getActiveDocumentContext()$path
+working_path <- dirname(getActiveDocumentContext()$path)
+setwd(working_path)
+getwd()
+
+# Load data
+data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
+## dataset until wk4 check-in
+newdata <- data[, c(2,20,29,32,33,34,36,37,39,43,52,152)]
+newdata <- na.omit(newdata)
+head(newdata)
+## creating a new data frame for the wk8 checkin
+column_names <- colnames(data)
+print(column_names)
+# this dataset contains all gene variables, outcome- tumor_stage, age_at_diagnosis, and all the gene
+age_allgene <- data[, c(2,30,32:520)]
+print(colnames(age_allgene))
+
+tumor_size <- newdata$tumor_size
+lymph_nodes_pos <- newdata$lymph_nodes_examined_positive
+names(newdata)
+summary(newdata)
+summary(tumor_size)
+
+# The EDA (exploratory data analysis of outcome tumor stage, and predictors)
+## The histogram of tumor stage
+par(mfrow=c(1,2)) 
+hist(age_allgene$tumor_stage, main = "Histogram of Tumor Stage", xlab = "Tumor Stage", col = "grey")
+hist(log(age_allgene$tumor_stage), main = "Histogram of Tumor Size", xlab = "Log Tumor Stage", col = "skyblue")
