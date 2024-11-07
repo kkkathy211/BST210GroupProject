@@ -111,10 +111,11 @@ table(age_allgene$cancer_type_detailed)
 y <- age_allgene$cancer_type_detailed
 table(y)
 
-# Fit the multinomial model with regularization (Lasso)
-model <- cv.glmnet(x, y, family = "multinomial", alpha = 1, lambda=lambda_grid, data=age_allgene) 
-lambda_min_lasso <- model$lambda.min
-lambda_1se_lasso <- model$lambda.1se
-plot(model)
-coef(model,s=lambda_min_lasso, na.rm = na.rm)
-coef(model,s=lambda_1se_lasso, na.rm = na.rm)
+# Fit the multinomial model with regularization (Lasso) it takes me a long time to run
+lasso.fram <- cv.glmnet(x, y, family = "multinomial", alpha = 1, lambda=lambda_grid, data=age_allgene) 
+lambda_min_lasso <- lasso.fram$lambda.min
+lambda_1se_lasso <- lasso.fram$lambda.1se
+plot(lasso.fram)
+coef(lasso.fram,s=lambda_min_lasso, na.rm = na.rm)
+coef(lasso.fram,s=lambda_1se_lasso, na.rm = na.rm)
+
