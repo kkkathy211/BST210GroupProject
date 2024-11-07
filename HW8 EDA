@@ -46,3 +46,75 @@ summary(tumor_size)
 par(mfrow=c(1,2)) 
 hist(age_allgene$tumor_stage, main = "Histogram of Tumor Stage", xlab = "Tumor Stage", col = "grey")
 hist(log(age_allgene$tumor_stage), main = "Histogram of Tumor Size", xlab = "Log Tumor Stage", col = "skyblue")
+
+## Adapted from HW6 data
+# Fitting the multinomial model
+install.packages("car")
+install.packages("glmnet")
+library(glmnet)
+library(vip)
+library(car)
+library(nnet)
+install.packages("regclass")
+library(regclass)
+
+covariate_indices <- c(1,4:492)
+covariate_names <- colnames(age_allgene)[covariate_indices]
+covariate_names <- covariate_names[!covariate_names %in% c("tumor_stage","cancer_type_detailed")]
+formula_str <- paste("cancer_type_detailed ~", paste(covariate_names, collapse = " + "))
+formula <- as.formula(formula_str)
+
+# recode cancertype to numerics
+age_allgene$cancer_type_detailed <- as.factor(age_allgene$cancer_type_detailed)
+print(levels(age_allgene$cancer_type_detailed))
+levels(age_allgene$cancer_type_detailed) <- c(1, 2, 3, 4,5,6)
+
+temp=age_allgene[,c(1,4:492)]
+names(temp)
+age_allgene <- age_allgene[complete.cases(temp), ]
+names(age_allgene)
+dim(age_allgene)
+
+# Fit full logistic regression model
+glm_model <- multinom(formula, data = age_allgene)
+summary(glm_model)
+vif(glm_model)
+
+# Model select via stepwise:
+# (and shut off all the output)
+stepModel <- step(multinom(formula, data = age_allgene), direction=c("both"), trace=0)
+summary(stepModel)
+
+# Model select via backward:
+stepModel <- step(multinom(formula, data = age_allgene), direction=c("backward"), trace=0)
+summary(stepModel)
+
+# Model select via forward:
+stepModel <- step(multinom(formula, data = age_allgene), direction=c("forward"), trace=0)
+summary(stepModel)
+
+################# all doesn't work! try do lasso first
+
+library(glmnet)
+# Model select via Penalized regression methods
+set.seed(17)
+lambda_grid <- .2 ^ (-50:50)
+# Prepare the response and predictor matrices
+x <- as.matrix(age_allgene[, covariate_indices])
+
+# combine 5 and 6 in Y to be 5 
+age_allgene$cancer_type_detailed <- as.factor(age_allgene$cancer_type_detailed)
+age_allgene$cancer_type_detailed <- as.character(age_allgene$cancer_type_detailed)
+age_allgene$cancer_type_detailed[age_allgene$cancer_type_detailed %in% c("5", "6")] <- "5"
+age_allgene$cancer_type_detailed <- as.factor(age_allgene$cancer_type_detailed)
+table(age_allgene$cancer_type_detailed)
+y <- age_allgene$cancer_type_detailed
+table(y)
+
+# Fit the multinomial model with regularization (Lasso)
+model <- cv.glmnet(x, y, family = "multinomial", alpha = 1, lambda=lambda_grid, data=age_allgene) 
+lambda_min_lasso <- model$lambda.min
+lambda_1se_lasso <- model$lambda.1se
+plot(model)
+coef(model,s=lambda_min_lasso, na.rm = na.rm)
+coef(model,s=lambda_1se_lasso, na.rm = na.rm)
