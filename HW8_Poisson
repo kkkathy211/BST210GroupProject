@@ -1,0 +1,140 @@
+
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(DAAG)
+#library(glmnet)
+#library(leaps)
+#library(StepReg)
+library(broom)
+#library(caret)
+#library(vip)
+
+library(stats)
+library(pscl)
+library(lmtest)
+library(sandwich)
+library(MASS)
+library(car)
+library(vcd)
+library(AER)
+library(pROC)
+
+# Set working directory and load data
+getwd()
+# if you are running this .R file in Rstudio
+# install.packages("rstudioapi")
+library(rstudioapi)
+getActiveDocumentContext()$path
+working_path <- dirname(getActiveDocumentContext()$path)
+setwd(working_path)
+getwd()
+
+# Load data
+data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
+## creating a new data frame for the wk8 checkin
+column_names <- colnames(data)
+print(column_names)
+# this dataset contains all gene variables, outcome- tumor_stage, age_at_diagnosis, and all the gene
+age_gene <- data[, c(2,29,30,20,32,36,52,67,70:77,106,107,258,259,320,448)]
+print(colnames(age_gene))
+
+# Drop rows with NA values in "lymph_nodes_examined_positive"
+lymph_gene <- age_gene %>% filter(!is.na(lymph_nodes_examined_positive))
+
+# Check the result to confirm NA values were removed
+print(colnames(lymph_gene))
+
+####### EDA #######
+# Look at the data in various ways to understand what is there.
+# We can do summary measures and plots, but also simply print the data
+# as it is such a small dataset.
+# This informs how we work with and model it upcoming
+
+head(lymph_gene)
+
+# Outcome
+par(mfrow=c(1,1))
+hist(lymph_gene$lymph_nodes_examined_positive)
+summary(lymph_gene$lymph_nodes_examined_positive)
+table(lymph_gene$lymph_nodes_examined_positive)
+
+
+# Further plots
+# (Does scatter/trends make sense?)
+plot(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5
+     + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, data = lymph_gene)
+
+# Cursory consideration of mean=variance assumption, dispersion
+# More involved approaches also needed
+mean(lymph_gene$lymph_nodes_examined_positive)
+var(lymph_gene$lymph_nodes_examined_positive)
+#install/packages("grid")
+fit<-goodfit(lymph_gene$lymph_nodes_examined_positive)
+rootogram(fit)
+summary(fit)
+
+#In this case, the variance is significantly higher than the mean, which suggests overdispersion.
+#A p-value of 0 strongly suggests that the Poisson distribution does not fit your data well.
+
+mod.p <- glm(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5
+               + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, data = lymph_gene,
+               family=poisson())
+
+deviance(mod.p)/mod.p$df.residual
+dispersiontest(mod.p)
+#pchisq(mod.cigsmoke$deviance, mod.cigsmoke$df.residual, lower.tail=FALSE)
+
+#################EDA###################
+# Diagnostic plots
+par(mfrow=c(3,2))
+# residual and other plots
+plot(mod.p,1:6)
+par(mfrow=c(1,1))
+plot(mod.p$fit, abs(rstandard(mod.p, type="pearson")),
+     xlab="Fitted Values", ylab="|Standardized Pearson Residuals|")
+# Influence plots
+influencePlot(mod.p)
+influenceIndexPlot(mod.p)
+
+# Who are the influencers?
+lymph_gene[c(109, 227, 314, 1998, 1092),]
+
+par(mfrow=c(2,2))
+# How do our fitted values and hii look?
+hist(mod.p$fitted, main="fitted")
+hist(lymph_gene$lymph_nodes_examined_positive, breaks = "Sturges", main="Raw")
+hist(hatvalues(mod.p), main="hat-values")
+# More diagnostic plots
+marginalModelPlots(mod.p)
+outlierTest(mod.p)
+
+Ord_plot(lymph_gene$lymph_nodes_examined_positive)
+distplot(lymph_gene$lymph_nodes_examined_positive, type="poisson")
+distplot(lymph_gene$lymph_nodes_examined_positive, type="nbinom")
+
+#############################################
+
+# Fit a zip model using Poisson distribution for the count component
+mod.zip <- hurdle(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5 +
+                       e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1 | brca1 + age_at_diagnosis, 
+                     data = lymph_gene, dist = "poisson")
+
+# Summary of the zip model
+summary(mod.zip)
+AIC(mod.p, mod.zip)
+
+# Fit the Negative Binomial model
+mod.nb <- glm.nb(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5 +
+                   e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, 
+                 data = lymph_gene)
+
+summary(mod.nb)
+aic_values <- AIC(mod.p, mod.nb, mod.zip)
+print(aic_values)
+vuong(mod.p, mod.nb)
+vuong(mod.p, mod.zip)
+vuong(mod.nb, mod.zip)
