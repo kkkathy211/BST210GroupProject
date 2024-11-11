@@ -1,0 +1,1021 @@
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(DAAG)
+#library(glmnet)
+#library(leaps)
+#library(StepReg)
+library(broom)
+#library(caret)
+#library(vip)
+library(car)
+
+# Set working directory and load data
+getwd()
+# if you are running this .R file in Rstudio
+# install.packages("rstudioapi")
+library(rstudioapi)
+getActiveDocumentContext()$path
+working_path <- dirname(getActiveDocumentContext()$path)
+setwd(working_path)
+getwd()
+
+# Load data
+data = read.csv("METABRIC_RNA_Mutation.csv", sep = ",", na.strings = c("", " "), header = TRUE)
+## creating a new data frame for the wk8 checkin
+column_names <- colnames(data)
+print(column_names)
+# this dataset contains all gene variables, outcome- tumor_stage, age_at_diagnosis, and all the gene
+age_gene <- data[, c(2,29,30,20,32,36,52,67,70:77,106,107,258,259,320,448)]
+print(colnames(age_gene))
+
+################################ EDA ##############################################
+# The EDA (exploratory data analysis) of exposure and covariates:
+## The histogram of all the variables of interests
+hist(age_gene$age_at_diagnosis, main = "Histogram of Age at Diagnosis", xlab = "Age at Diagnosis", col = "grey")
+hist(age_gene$brca1, main = "Histogram of BRCA1", xlab = "BRCA1 Expression", col = "grey")
+hist(age_gene$tp53, main = "Histogram of TP53", xlab = "TP53 Expression", col = "grey")
+hist(age_gene$rb1, main = "Histogram of RB1", xlab = "RB1 Expression", col = "grey")
+hist(age_gene$myc, main = "Histogram of MYC", xlab = "MYC Expression", col = "grey")
+hist(age_gene$e2f1, main = "Histogram of E2F1", xlab = "E2F1 Expression", col = "grey")
+hist(age_gene$e2f2, main = "Histogram of E2F2", xlab = "E2F2 Expression", col = "grey")
+hist(age_gene$e2f3, main = "Histogram of E2F3", xlab = "E2F3 Expression", col = "grey")
+hist(age_gene$e2f4, main = "Histogram of E2F4", xlab = "E2F4 Expression", col = "grey")
+hist(age_gene$e2f5, main = "Histogram of E2F5", xlab = "E2F5 Expression", col = "grey")
+hist(age_gene$e2f6, main = "Histogram of E2F6", xlab = "E2F6 Expression", col = "grey")
+hist(age_gene$e2f7, main = "Histogram of E2F7", xlab = "E2F7 Expression", col = "grey")
+hist(age_gene$e2f8, main = "Histogram of E2F8", xlab = "E2F8 Expression", col = "grey")
+hist(age_gene$hdac1, main = "Histogram of HDAC1", xlab = "HDAC1 Expression", col = "grey")
+hist(age_gene$hdac2, main = "Histogram of HDAC2", xlab = "HDAC2 Expression", col = "grey")
+hist(age_gene$nfkb1, main = "Histogram of NFKB1", xlab = "NFKB1 Expression", col = "grey")
+hist(age_gene$nfkb2, main = "Histogram of NFKB2", xlab = "NFKB2 Expression", col = "grey")
+hist(age_gene$runx1, main = "Histogram of RUNX1", xlab = "RUNX1 Expression", col = "grey")
+hist(age_gene$taf1, main = "Histogram of TAF1", xlab = "TAF1 Expression", col = "grey")
+
+# The EDA (exploratory data analysis) of outcomes: tumor size (linear), tumor stage (logistic), lymph node (poisson))
+## Tumor size
+### histograms of the tumor size
+par(mfrow=c(1,2)) 
+hist(age_gene$tumor_size, main = "Histogram of Tumor Size", xlab = "Tumor Size (mm)", col = "grey")
+hist(log(age_gene$tumor_size), main = "Histogram of Tumor Size", xlab = "Log Tumor Size", col = "skyblue")
+### transform the tumor size to be log(tumor_size)
+age_gene$tumor_size_log <- log(age_gene$tumor_size)
+### The scatterplot of outcome to predictor and exposure and each of the covariates
+par(mfrow=c(2,2)) 
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$brca1, 
+               main = "Tumor Size vs BRCA1", 
+               xlab = "BRCA1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$age_at_diagnosis, 
+               main = "Tumor Size vs Age", 
+               xlab = "Age", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$tp53, 
+               main = "Tumor Size vs TP53", 
+               xlab = "TP53 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$rb1, 
+               main = "Tumor Size vs RB1", 
+               xlab = "RB1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$myc, 
+               main = "Tumor Size vs MYC", 
+               xlab = "MYC Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f1, 
+               main = "Tumor Size vs E2F1", 
+               xlab = "E2F1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f2, 
+               main = "Tumor Size vs E2F2", 
+               xlab = "E2F2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f3, 
+               main = "Tumor Size vs E2F3", 
+               xlab = "E2F3 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f4, 
+               main = "Tumor Size vs E2F4", 
+               xlab = "E2F4 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f5, 
+               main = "Tumor Size vs E2F5", 
+               xlab = "E2F5 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f6, 
+               main = "Tumor Size vs E2F6", 
+               xlab = "E2F6 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f7, 
+               main = "Tumor Size vs E2F7", 
+               xlab = "E2F7 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$e2f8, 
+               main = "Tumor Size vs E2F8", 
+               xlab = "E2F8 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$hdac1, 
+               main = "Tumor Size vs HDAC1", 
+               xlab = "HDAC1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$hdac2, 
+               main = "Tumor Size vs HDAC2", 
+               xlab = "HDAC2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$nfkb1, 
+               main = "Tumor Size vs NFKB1", 
+               xlab = "NFKB1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$nfkb2, 
+               main = "Tumor Size vs NFKB2", 
+               xlab = "NFKB2 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$runx1, 
+               main = "Tumor Size vs RUNX1", 
+               xlab = "RUNX1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+scatter.smooth(age_gene$tumor_size_log ~ age_gene$taf1, 
+               main = "Tumor Size vs TAF1", 
+               xlab = "TAF1 Expression", 
+               ylab = "Tumor Size (mm)", 
+               col = "grey")
+
+### The pairwise scatterplot of covariates 
+png("pairwise_scatterplot_log_tumor_size_covariates.png", width = 4000, height = 4000, res = 300)
+pairs(log(tumor_size) ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5 +
+        e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, 
+      data = age_gene,
+      cex = 0.3,
+      col = adjustcolor("light blue", alpha.f = 0.3),
+      main = "Pairwise Scatterplot of Log-Transformed Tumor Size and Covariates")
+dev.off()
+
+## Tumor Stage (logistic)
+library(foreign)
+library(nnet) 
+library(haven)
+library(broom)
+library(knitr)
+library(dplyr)
+
+### The histogram of tumor stage
+par(mfrow=c(1,2)) 
+hist(age_gene$tumor_stage, main = "Histogram of Tumor Stage", xlab = "Tumor Stage", col = "grey")
+hist(log(age_gene$tumor_stage), main = "Histogram of Tumor Size", xlab = "Log Tumor Stage", col = "skyblue")
+### data table
+table(age_gene$tumor_stage)
+## glean a sense of the data
+glimpse(age_gene)
+## exploratory smooths of these data
+par(mfrow=c(2,2)) 
+## side by side boxplots of outcome tumor stage with different outcome variables 
+boxplot(age_at_diagnosis ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "Age at Diagnosis", 
+        main = "Age at Diagnosis by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(brca1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "BRCA1 Expression", 
+        main = "BRCA1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(tp53 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "TP53 Expression", 
+        main = "TP53 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(rb1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "RB1 Expression", 
+        main = "RB1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(myc ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "MYC Expression", 
+        main = "MYC Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F1 Expression", 
+        main = "E2F1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f2 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F2 Expression", 
+        main = "E2F2 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f3 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F3 Expression", 
+        main = "E2F3 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f4 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F4 Expression", 
+        main = "E2F4 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f5 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F5 Expression", 
+        main = "E2F5 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f6 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F6 Expression", 
+        main = "E2F6 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f7 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F7 Expression", 
+        main = "E2F7 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(e2f8 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "E2F8 Expression", 
+        main = "E2F8 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(hdac1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "HDAC1 Expression", 
+        main = "HDAC1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(hdac2 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "HDAC2 Expression", 
+        main = "HDAC2 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(nfkb1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "NFKB1 Expression", 
+        main = "NFKB1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(nfkb2 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "NFKB2 Expression", 
+        main = "NFKB2 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(runx1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "RUNX1 Expression", 
+        main = "RUNX1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+boxplot(taf1 ~ tumor_stage, data = age_gene, 
+        xlab = "Tumor Stage", ylab = "TAF1 Expression", 
+        main = "TAF1 Expression by Tumor Stage", 
+        col = "lightblue")
+
+## lymph nodes (poisson)
+# The histogram of lymph_nodes_examined_positive
+par(mfrow=c(1,2)) 
+hist(age_gene$lymph_nodes_examined_positive, main = "Histogram of Lymph Nodes Examined Positive", xlab = "Lymph Nodes Examined Positive", col = "grey")
+hist(log(age_gene$lymph_nodes_examined_positive), main = "Histogram of Log Lymph Nodes Examined Positive", xlab = "Log Lymph Nodes Examined Positive", col = "skyblue")
+
+# Data table
+table(age_gene$lymph_nodes_examined_positive)
+
+# Glean a sense of the data
+glimpse(age_gene)
+
+# Exploratory smooths of these data
+par(mfrow=c(2,2)) 
+
+# Side by side boxplots of outcome lymph_nodes_examined_positive with different predictor variables
+boxplot(age_at_diagnosis ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "Age at Diagnosis", 
+        main = "Age at Diagnosis by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(brca1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "BRCA1 Expression", 
+        main = "BRCA1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(tp53 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "TP53 Expression", 
+        main = "TP53 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(rb1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "RB1 Expression", 
+        main = "RB1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(myc ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "MYC Expression", 
+        main = "MYC Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F1 Expression", 
+        main = "E2F1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f2 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F2 Expression", 
+        main = "E2F2 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f3 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F3 Expression", 
+        main = "E2F3 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f4 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F4 Expression", 
+        main = "E2F4 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f5 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F5 Expression", 
+        main = "E2F5 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f6 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F6 Expression", 
+        main = "E2F6 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f7 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F7 Expression", 
+        main = "E2F7 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(e2f8 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "E2F8 Expression", 
+        main = "E2F8 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(hdac1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "HDAC1 Expression", 
+        main = "HDAC1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(hdac2 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "HDAC2 Expression", 
+        main = "HDAC2 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(nfkb1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "NFKB1 Expression", 
+        main = "NFKB1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(nfkb2 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "NFKB2 Expression", 
+        main = "NFKB2 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(runx1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "RUNX1 Expression", 
+        main = "RUNX1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+boxplot(taf1 ~ lymph_nodes_examined_positive, data = age_gene, 
+        xlab = "Lymph Nodes Examined Positive", ylab = "TAF1 Expression", 
+        main = "TAF1 Expression by Lymph Nodes Examined Positive", 
+        col = "lightblue")
+
+############# QUESTION 1: How the BRCA1 gene expression influence tumor size?####################
+age_gene_size <- age_gene[!is.na(age_gene$tumor_size), ]
+sum(is.na(age_gene_size$tumor_size))
+age_gene_size$tumor_size[age_gene_size$tumor_stage == 0 & !is.na(age_gene_size$tumor_stage)] # we are curious about when stage = 0, what's its tumor size
+
+# Conduct model selection
+## Fit full linear model
+lm_model <- lm(tumor_size_log ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1+ e2f2 + e2f3 + e2f4 + e2f5
+               + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, data = age_gene_size)
+summary(lm_model)
+vif(lm_model)
+
+## Model select via stepwise:(and shut off all the output)
+stepwise <- step(lm_model, direction=c("both"), trace=0)
+summary(stepwise)
+
+## Model select via backward:
+backward <- step(lm_model, direction=c("backward"), trace=0)
+summary(backward)
+
+## Model select via forward:
+forward <- step(lm_model, direction=c("forward"), trace=0)
+summary(forward)
+
+## Model select via Penalized regression methods
+library(glmnet)
+set.seed(17)
+
+## Prepare X matrix (minus death) for input to glmnet
+temp=age_gene_size[,c("tumor_size_log","brca1","age_at_diagnosis","tp53","rb1","myc","e2f1", "e2f2", "e2f3", "e2f4", "e2f5",
+             "e2f6", "e2f7", "e2f8", "hdac1","hdac2","nfkb1", "nfkb2", "runx1", "taf1")]
+x <- model.matrix(tumor_size_log~., data=temp)[,-c(1)]
+y <- temp$tumor_size_log
+names(x)<- c("brca1","age_at_diagnosis","tp53","rb1","myc","e2f1", "e2f2", "e2f3", "e2f4", "e2f5",
+             "e2f6", "e2f7", "e2f8", "hdac1","hdac2","nfkb1", "nfkb2", "runx1", "taf1")
+ridge.fram <- glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+library(vip)
+vip(ridge.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(ridge.fram)
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+plot(cv.ridge)
+lambda_min_ridge <- cv.ridge$lambda.min
+lambda_1se_ridge <- cv.ridge$lambda.1se
+coef(cv.ridge, s = lambda_min_ridge)
+coef(cv.ridge, s = lambda_1se_ridge)
+
+## LASSO
+lasso.fram = glmnet(x,y, alpha = 1,  family = "gaussian", data=temp)
+vip(lasso.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(lasso.fram)
+cv.lasso <- cv.glmnet(x,y,alpha = 1,family = "gaussian", data=temp)
+lambda_min_lasso <- cv.lasso$lambda.min
+lambda_1se_lasso <- cv.lasso$lambda.1se
+plot(cv.lasso)
+coef(cv.lasso,s=lambda_min_lasso)
+coef(cv.lasso,s=lambda_1se_lasso)
+
+## Elastic Net
+EN.fram = glmnet(x,y, alpha=0.5,  family = "gaussian", data=temp)
+vip(EN.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(EN.fram)
+cv.EN <- cv.glmnet(x,y, alpha=0.5, family = "gaussian", data=temp)
+lambda_min_EN <- cv.EN$lambda.min
+lambda_1se_EN <- cv.ridge$lambda.1se
+plot(cv.EN)
+coef(cv.EN,s=lambda_min_EN)
+coef(cv.EN,s=lambda_1se_EN)
+
+## Comparing all three methods
+
+par(mfrow=c(1,3))
+
+plot(ridge.fram)
+plot(lasso.fram)
+plot(EN.fram)
+
+plot(cv.ridge)
+plot(cv.lasso)
+plot(cv.EN)
+
+## Minimize deviance based on 1 standard error from lambda criteria 
+out <- cbind(coef(cv.ridge,s=lambda_1se_ridge),coef(cv.lasso,s=lambda_1se_lasso),
+             coef(cv.EN,s=lambda_1se_EN))
+colnames(out) <- c("Ridge", "LASSO", "EN")
+out
+
+## Minimize deviance based on min lambda criteria is used because 1se is too restrictive:
+out <- cbind(coef(cv.ridge, s = "lambda.min"),coef(cv.lasso, s = "lambda.min"),coef(cv.EN, s = "lambda.min"))
+out
+
+## Fit final logistic regression model using results of the choice of Penalized model
+lm_final <- lm(tumor_size_log ~ brca1 + age_at_diagnosis + rb1 + myc + e2f1+ e2f2 + e2f3 + e2f4 
+               + e2f6 + e2f7 + e2f8 + hdac2 + nfkb1 + runx1 + taf1, data = age_gene_size)
+vif(lm_final)
+summary(lm_final)
+
+# starting with the linear model
+age_gene_size <- age_gene_size[order(age_gene_size$brca1),]
+
+## linear model
+model_linear <- lm(tumor_size_log ~ brca1, data=age_gene_size)
+summary(model_linear)
+aic_linear <- extractAIC(model_linear)[2]  # Extract AIC value from the model
+adj_r2_linear <- summary(model_linear)$adj.r.squared
+
+### Line assumption checks
+lm1 = lm(tumor_size_log ~ brca1, data = age_gene_size)
+summary(lm1)
+confint(lm1)
+
+####1. correlation
+cor.test(age_gene_size$brca1, age_gene_size$tumor_size_log)
+lm1 = lm(tumor_size_log ~ brca1, data = age_gene_size)
+plot(lm1)
+res<-residuals(lm1)
+fit<-fitted.values(lm1)
+mystd <- res/(sqrt(sum(res^2)/(length(res)-1-4))) # standardized 
+stdres<-rstandard(lm1) # internally stud
+stures<-rstudent(lm1) # externally stud
+hat<-hatvalues(lm1)
+cooksd<-cooks.distance(lm1)
+
+####2. Assessing normality of the residuals
+hist(stures,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stures)
+abline(0,1)
+shapiro.test(stures)
+
+hist(stdres,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stdres)
+abline(0,1)
+
+####3. Examining observations with large internally/externally studentized residuals
+d2<-age_gene_size[,c("brca1","tumor_size_log")]
+summary(d2[,-1])
+d3<-cbind(d2,stdres,stures)
+d3[abs(stdres)>2,]
+d3[abs(stures)>2,]
+d3[abs(stdres)>3,]
+d3[abs(stures)>3,]
+
+summary(hat)
+mean(hat)
+(thresh<-length(coef(lm1))/length(hat)) #(p+1)/n
+
+####4. Creating a histogram & boxplot of the hat values
+hist(hat)
+boxplot(hat)
+d2[hat>2*thresh,]
+d2[hat>4*thresh,]
+
+####5. See chart created in 2D for assessment of Cook's distances
+summary(cooksd)
+
+####6. Creating a histogram & boxplot of the Cook's distances
+hist(cooksd)
+boxplot(cooksd)
+n<-length(cooksd)
+d3<-cbind(d2,stures,hat,cooksd)
+d3[cooksd>4/n,]
+d3[cooksd>12/n,]
+
+####7. Compare the model run on all observations to the model with outliers omitted
+summary(lm(tumor_size_log ~ brca1, data = age_gene_size))
+hat_thresh<-length(coef(lm1))/length(hat)
+age_gene_size_no_outlier <-subset(age_gene_size,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
+nrow(age_gene_size)-nrow(age_gene_size_no_outlier)
+summary(lm(tumor_size_log ~ brca1, data = age_gene_size,dat=age_gene_size_no_outliers))
+
+## quadratic model
+model_quad <- lm(tumor_size_log ~ brca1 + I(brca1^2), data=age_gene_size)
+summary(model_quad)
+aic_quad <- extractAIC(model_quad)[2]  # Extract AIC value from the model
+adj_r2_quad <- summary(model_quad)$adj.r.squared
+
+## spline
+model_spline=lm(tumor_size_log~bSpline(brca1,df=4),data=age_gene_size)
+summary(model_spline)
+extractAIC(model_spline)
+aic_spline <- extractAIC(model_spline)[2]  # Extract AIC value from the model
+adj_r2_spline <- summary(model_spline)$adj.r.squared
+
+## gam
+age_gene_size$brca1 <- scale(age_gene_size$brca1)
+model_gam <- gam(tumor_size_log~s(brca1,4),data=age_gene_size)
+summary(model_gam)
+coef(model_gam)
+aic_gam <- extractAIC(model_gam)[2]  # Extract AIC value from the model
+adj_r2_gam <- NA
+
+anova(model_quad,model_spline)
+anova(model_quad,model_gam)
+anova(model_linear,model_quad)
+
+plot(tumor_size_log ~ brca1, data=age_gene_size)
+plot(tumor_size_log ~ brca1, data=age_gene_size, col=rgb(0, 0, 0, 0.3), pch=16)
+lines(age_gene_size$brca1,fitted(model_linear), col="red")
+lines(age_gene_size$brca1,fitted(model_quad), col="blue")
+lines(age_gene_size$brca1,fitted(model_spline), col="green")
+lines(age_gene_size$brca1,fitted(model_gam), col="orange")
+legend(x="topleft",legend=c("Linear","Quadratic","Spline", "GAM"),fill=c("red","blue","green","orange"))
+
+## Create a matrix to store the results
+result_matrix <- matrix(c(
+  aic_linear, adj_r2_linear,
+  aic_quad, adj_r2_quad,
+  aic_spline, adj_r2_spline,
+  aic_gam, adj_r2_gam
+), ncol = 2, byrow = TRUE)
+
+## Add row and column names for clarity
+rownames(result_matrix) <- c("Linear Model", "Quadratic Model", "Spline Model", "GAM Model")
+colnames(result_matrix) <- c("AIC", "Adjusted R²")
+
+## Convert matrix to data frame for better readability
+result_df <- as.data.frame(result_matrix)
+
+## Print the result matrix
+print(result_df)
+
+# Continue with adding interaction term
+## Fit final logistic regression model using results of the choice of Penalized model
+lm_interact_all <- lm(tumor_size_log ~ brca1*age_at_diagnosis +  brca1*rb1 + brca1*myc + brca1*e2f1+ brca1*e2f2 
+                  + brca1*e2f3 + brca1*e2f4 + brca1*e2f6 + brca1*e2f7 + brca1*e2f8 + brca1*hdac2 + brca1*nfkb1 
+                  + brca1*runx1 + brca1*taf1, data = age_gene_size)
+summary(lm_interact_all)
+## Since only brca1:taf1 is significant and brca1:age_at_diagnosis is close to significant, we only keep this one and age
+lm_interact_ta <- lm(tumor_size_log ~ brca1 + brca1*age_at_diagnosis + rb1 + myc + e2f1+ e2f2 
+                      + e2f3 + e2f4 + e2f6 + e2f7 + e2f8 + hdac2 + nfkb1 
+                      + runx1 + brca1*taf1, data = age_gene_size)
+summary(lm_interact_ta)
+
+############# QUESTION 2: How the BRCA1 gene expression influence tumor stage?####################
+age_gene_stage <- age_gene[!is.na(age_gene$tumor_stage) & age_gene$tumor_stage != 0, ]
+age_gene_stage <- na.omit(age_gene_stage)
+
+################# Fitting the multinomial model#######################################
+library(nnet)
+mult_model <- multinom(tumor_stage ~ brca1, data = age_gene_stage)
+summary(mult_model)
+coef(mult_model)
+
+# Plotting the predicted probabilities
+par(mfrow=c(1,1))
+plot(mult_model$fitted.values[,1][order(age_gene_stage$tumor_stage)] ~ sort(age_gene_stage$tumor_stage), 
+     type = "l", col = "dodgerblue", 
+     main = "Predicted Probabilities of Each Outcome Category by Tumor Stage", 
+     xlab = "Tumor Stage", ylab = "Predicted Probability", 
+     ylim = c(0, 1))
+points(mult_model$fitted.values[,2][order(age_gene_stage$tumor_stage)] ~ sort(age_gene_stage$tumor_stag), type="l", col="magenta")
+points(mult_model$fitted.values[,3][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="green")
+points(mult_model$fitted.values[,4][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="yellow")
+points(mult_model$fitted.values[,0][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="grey")
+
+# Diagnostics:
+library(car)
+par(mfrow=c(1,2))
+vif(mult_model)
+hist(mult_model$fitted, main="p-hats")
+
+hat_values <- apply(mult_model$fitted * (1 - mult_model$fitted), 1, sum)
+hist(hat_values, main = "Hat Values (Leverage) for Multinomial Model", 
+     xlab = "Hat Values", col = "lightblue")
+residuals <- mult_model$residuals
+X <- model.matrix(mult_model)
+library(MASS)
+n <- nrow(X)
+diagonal_elements <- apply(mult_model$fitted * (1 - mult_model$fitted), 1, sum)
+W <- diag(diagonal_elements)
+H <- X %*% ginv(t(X) %*% W %*% X) %*% t(X) %*% W
+leverages <- diag(H)
+p <- ncol(X)
+cooks_distances <- numeric(nrow(X))
+for (i in 1:nrow(X)) {
+  residual <- residuals[i, ]  
+  leverage <- leverages[i]    
+  cooks_distance <- (sum(residual^2) * leverage) / (p * (1 - leverage)^2)
+  cooks_distances[i] <- cooks_distance
+}
+cooks_distances
+influential_obs <- cooks_distances[cooks_distances > 1]
+print(influential_obs)
+### from this, no influential points are observed with cook's distance >1
+
+n <- nrow(X)  
+W <- matrix(0, n, n)
+for (i in 1:n) {
+  p_i <- mult_model$fitted[i, ]
+  W[i, i] <- sum(p_i * (1 - p_i))
+}
+H <- X %*% ginv(t(X) %*% W %*% X) %*% t(X) %*% W
+leverages <- diag(H)
+p <- ncol(X)
+n <- nrow(X)
+threshold <- 2 * p / n
+high_leverage_points <- which(leverages > threshold)
+high_leverage_points
+### also no high leverage points
+
+# Fitting the multinomial models
+mult_full <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1+ e2f2 + e2f3 + e2f4 + e2f5
+                      + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1,data = age_gene_stage,method = "logistic")
+summary(mult_full)
+vif(mult_full)
+
+# Conduct the model selection
+## Model select via stepwise:(and shut off all the output)
+stepwise_m <- step(mult_full, direction=c("both"), trace=0)
+summary(stepwise_m)
+
+## Model select via backward:
+backward_m <- step(mult_full, direction=c("backward"), trace=0)
+summary(backward_m)
+
+## Model select via forward:
+forward_m <- step(mult_full, direction=c("forward"), trace=0)
+summary(forward_m)
+
+## Model select via Penalized regression methods
+library(glmnet)
+set.seed(17)
+
+## Prepare X matrix (minus death) for input to glmnet
+temp2=age_gene_stage[,c("tumor_stage","brca1","age_at_diagnosis","tp53","rb1","myc","e2f1", "e2f2", "e2f3", "e2f4", "e2f5",
+                      "e2f6", "e2f7", "e2f8", "hdac1","hdac2","nfkb1", "nfkb2", "runx1", "taf1")]
+x <- model.matrix(tumor_stage~., data=temp2)[,-c(1)]
+y <- temp2$tumor_stage
+names(x)<- c("brca1","age_at_diagnosis","tp53","rb1","myc","e2f1", "e2f2", "e2f3", "e2f4", "e2f5",
+             "e2f6", "e2f7", "e2f8", "hdac1","hdac2","nfkb1", "nfkb2", "runx1", "taf1")
+ridge.fram2 <- glmnet(x, y, alpha = 0, family = "multinomial", data = temp2,na.rm = na.rm)
+library(vip)
+vip(ridge.fram2, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(ridge.fram2)
+cv.ridge2 <- cv.glmnet(x, y, alpha = 0, family = "multinomial", data = temp2,na.rm = na.rm)
+plot(cv.ridge)
+lambda_min_ridge2 <- cv.ridge2$lambda.min
+lambda_1se_ridge2 <- cv.ridge2$lambda.1se
+coef(cv.ridge2, s = lambda_min_ridge2)
+coef(cv.ridge2, s = lambda_1se_ridge2)
+
+## LASSO
+lasso.fram2 = glmnet(x,y, alpha = 1,  family = "multinomial", data=temp2)
+vip(lasso.fram2, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(lasso.fram2)
+cv.lasso2 <- cv.glmnet(x,y,alpha = 1,family = "multinomial", data=temp2)
+lambda_min_lasso2 <- cv.lasso2$lambda.min
+lambda_1se_lasso2 <- cv.lasso2$lambda.1se
+plot(cv.lasso2)
+coef(cv.lasso2,s=lambda_min_lasso2)
+coef(cv.lasso2,s=lambda_1se_lasso2)
+
+## Elastic Net
+EN.fram2 = glmnet(x,y, alpha=0.5,  family = "multinomial", data=temp2)
+vip(EN.fram2, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(EN.fram2)
+cv.EN2 <- cv.glmnet(x,y, alpha=0.5, family = "multinomial", data=temp2)
+lambda_min_EN2 <- cv.EN2$lambda.min
+lambda_1se_EN2 <- cv.EN2$lambda.1se
+plot(cv.EN2)
+coef(cv.EN2,s=lambda_min_EN2)
+coef(cv.EN2,s=lambda_1se_EN2)
+
+## Comparing all three methods
+par(mfrow=c(1,3))
+
+plot(ridge.fram2)
+plot(lasso.fram2)
+plot(EN.fram2)
+
+plot(cv.ridge2)
+plot(cv.lasso2)
+plot(cv.EN2)
+
+
+## Fit final logistic regression model using results of the choice of Penalized model
+### we chose brca1 and tp53 Rb1 e2f1 e2f2 e2f3 e2f4 e2f6 e2f7e2f8 hdac1 nfkb1 runx1taf1 nfkb2 
+multi_final <- multinom(tumor_stage ~ brca1 + tp53 + rb1 + e2f1 + e2f2 + e2f4+e2f3 + e2f6 + e2f7+ e2f8 + nfkb1+ nfkb2 + 
+                 age_at_diagnosis+ hdac1 + taf1, data = age_gene_stage)
+summary(multi_final)
+
+### comparing with linear selection we didn't select myc, hdac2 as it appear in linear model
+### we incorportated tp53, nfkb2, hdac1 that's not in the linear model
+
+# Interaction terms
+
+## brca1*tp53
+mult_interact1 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + brca1*tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+summary(mult_interact1)
+anova(multi_final, mult_interact1, test="Chisq") # adding brca1*tp53 does not improve model fit
+
+## brca1*rb1
+mult_interact2 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + brca1*rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+summary(mult_interact2)
+anova(multi_final, mult_interact2, test="Chisq") # adding brca1*rb1 does not improve model fit
+
+## brca1*e2f1
+mult_interact3 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + brca1*e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact3, test = "Chisq") # significant with p-value = 0.04122812
+
+## brca1*e2f2
+mult_interact4 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + brca1*e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact4, test = "Chisq") # does not improve model fit
+
+## brca1*e2f4
+mult_interact5 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + brca1*e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact5, test = "Chisq") # does not improve model fit
+
+## brca1*e2f3
+mult_interact6 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + brca1*e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact6, test = "Chisq") # does not improve model fit
+
+## brca1*e2f6
+mult_interact7 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + brca1*e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact7, test = "Chisq") # does not improve model fit
+
+## brca1*e2f7
+mult_interact8 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + brca1*e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact8, test = "Chisq") # does not improve model fit
+
+## brca1*e2f8
+mult_interact9 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + brca1*e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact9, test = "Chisq") # does not improve model fit
+
+## brca1*nfkb1
+mult_interact10 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + brca1*nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact10, test = "Chisq") # does not improve model fit
+
+## brca1*nfkb2
+mult_interact11 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + brca1*nfkb2 + hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact11, test = "Chisq") # does not improve model fit
+
+## brca1*hdac1
+mult_interact12 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + brca1*hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact12, test = "Chisq") # does not improve model fit
+
+## brca1*taf1
+mult_interact13 <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + brca1*taf1, data = age_gene_stage)
+anova(multi_final, mult_interact13, test = "Chisq") # does not improve model fit
+
+## brca1*age_at_diagnosis
+mult_interact14 <- multinom(tumor_stage ~ brca1 + brca1*age_at_diagnosis+ tp53 + rb1 + e2f1 + e2f2 + e2f4+e2f3 + e2f6 + e2f7+ e2f8 + nfkb1+ nfkb2 + 
+                             hdac1 + taf1, data = age_gene_stage)
+anova(multi_final, mult_interact14, test = "Chisq") # does not improve model fit
+
+### therefore, is brca1*e2f1 the only significant term by stepwise comparison, final model is:
+mult_final_inter <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + brca1*e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
+
+
+################# Fitting the ordinal model#######################################
+# proportional assumption is met!
+age_gene_stage$tumor_stage <- as.factor(age_gene_stage$tumor_stage)
+str(age_gene_stage$tumor_stage)
+polr_full <- polr(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1+ e2f2 + e2f3 + e2f4 + e2f5
+                  + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1,data = age_gene_stage,method = "logistic")
+summary(polr_full)
+brant_test <- brant(polr_full)
+print(brant_test)
+
+# fit ordinal regression model
+library(VGAM)
+age_gene_stage$tumor_stage <- factor(age_gene_stage$tumor_stage, levels = c(1, 2, 3,4), ordered = TRUE)
+
+ord_full <- vglm(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1+ e2f2 + e2f3 + e2f4 + e2f5
+                + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, 
+                cumulative(parallel=TRUE, reverse=TRUE),data = age_gene_stage,)
+summary(ord_full)
+
+## since model selection could not be done (we didn't figure out how to conduct selection yet)
+# we fit the covariates from the multinomial
+ord_i <- vglm(tumor_stage ~brca1 + age_at_diagnosis + tp53 + rb1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 
+              + nfkb2 + hdac1 + taf1, cumulative(parallel=TRUE, reverse=TRUE), data = age_gene_stage)
+summary(ord_i)
+
+# interaction terms
+ord_interact_all <- vglm(tumor_stage ~ brca1 + brca1*age_at_diagnosis + brca1*tp53 + brca1*rb1 + brca1*e2f2 + brca1*e2f4 + brca1*e2f3 + brca1*e2f6 + brca1*e2f7 + brca1*e2f8 + brca1*nfkb1 
+                     + brca1*nfkb2 + brca1*hdac1 + brca1*taf1, cumulative(parallel=TRUE, reverse=TRUE), data=age_gene_stage)
+summary(ord_interact_all) ## none of the interaction term is significant when adding all together
+
+## we consider to fit the significant interaction in the multinomial
+ord_interact_e2f3 <- vglm(tumor_stage ~ brca1 + tp53 + rb1 + e2f2 + e2f4 + brca1*e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 
+                         + nfkb2 + hdac1 + taf1, cumulative(parallel=TRUE, reverse=TRUE), data=age_gene_stage)
+summary(ord_interact_e2f3)
+
+AIC(mult_final_inter)
+AIC(ord_i) #best AIC so far
+
+############# QUESTION 3: How the BRCA1 gene expression influence lymph nodes counts?####################
+# Drop rows with NA values in "lymph_nodes_examined_positive"
+lymph_gene <- age_gene %>% filter(!is.na(lymph_nodes_examined_positive))
+num_na_dropped <- sum(is.na(lymph_gene$lymph_nodes_examined_positive))
+print(paste("Number of NA values dropped:", num_na_dropped))
+
+# Check the result to confirm NA values were removed
+print(colnames(lymph_gene))
+
+# EDA 
+# Look at the data in various ways to understand what is there.
+# We can do summary measures and plots, but also simply print the data
+# as it is such a small dataset.
+# This informs how we work with and model it upcoming
+
+head(lymph_gene)
+
+# Outcome
+par(mfrow=c(1,1))
+hist(lymph_gene$lymph_nodes_examined_positive)
+summary(lymph_gene$lymph_nodes_examined_positive)
+table(lymph_gene$lymph_nodes_examined_positive)
+
+# Further plots
+# (Does scatter/trends make sense?)
+plot(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5
+     + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, data = lymph_gene)
+
+# Cursory consideration of mean=variance assumption, dispersion
+# More involved approaches also needed
+mean(lymph_gene$lymph_nodes_examined_positive)
+var(lymph_gene$lymph_nodes_examined_positive)
+#install/packages("grid")
+fit<-goodfit(lymph_gene$lymph_nodes_examined_positive)
+rootogram(fit)
+summary(fit)
+
+#In this case, the variance is significantly higher than the mean, which suggests overdispersion.
+#A p-value of 0 strongly suggests that the Poisson distribution does not fit your data well.
+
+mod.p <- glm(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5
+             + e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, data = lymph_gene,
+             family=poisson())
+
+deviance(mod.p)/mod.p$df.residual
+dispersiontest(mod.p)
+
+# Diagnostic plots
+par(mfrow=c(3,2))
+# residual and other plots
+plot(mod.p,1:6)
+par(mfrow=c(1,1))
+plot(mod.p$fit, abs(rstandard(mod.p, type="pearson")),
+     xlab="Fitted Values", ylab="|Standardized Pearson Residuals|")
+# Influence plots
+influencePlot(mod.p)
+influenceIndexPlot(mod.p)
+
+# Who are the influencers?
+lymph_gene[c(109, 227, 314, 1889, 1092),]
+
+par(mfrow=c(2,2))
+# How do our fitted values and hii look?
+hist(mod.p$fitted, main="fitted")
+hist(lymph_gene$lymph_nodes_examined_positive, breaks = "Sturges", main="Raw")
+hist(hatvalues(mod.p), main="hat-values")
+# More diagnostic plots
+marginalModelPlots(mod.p)
+outlierTest(mod.p)
+
+Ord_plot(lymph_gene$lymph_nodes_examined_positive)
+distplot(lymph_gene$lymph_nodes_examined_positive, type="poisson")
+distplot(lymph_gene$lymph_nodes_examined_positive, type="nbinom")
+
+
+# Fit a zip model using Poisson distribution for the count component
+mod.zip <- hurdle(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5 +
+                    e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1 | brca1 + age_at_diagnosis, 
+                  data = lymph_gene, dist = "poisson")
+
+# Summary of the zip model
+summary(mod.zip)
+AIC(mod.p, mod.zip)
+
+# Fit the Negative Binomial model
+mod.nb <- glm.nb(lymph_nodes_examined_positive ~ brca1 + age_at_diagnosis + tp53 + rb1 + myc + e2f1 + e2f2 + e2f3 + e2f4 + e2f5 +
+                   e2f6 + e2f7 + e2f8 + hdac1 + hdac2 + nfkb1 + nfkb2 + runx1 + taf1, 
+                 data = lymph_gene)
+
+summary(mod.nb)
+aic_values <- AIC(mod.p, mod.nb, mod.zip)
+print(aic_values)
+vuong(mod.p, mod.nb)
+vuong(mod.p, mod.zip)
+vuong(mod.nb, mod.zip)
+
+# Extract the coefficient and standard error for BRCA1
+coef_brca1 <- coef(mod.nb)["brca1"]
+se_brca1 <- summary(mod.nb)$coefficients["brca1", "Std. Error"]
+
+# Calculate the 95% CI on the log scale
+lower_bound_log <- coef_brca1 - 1.96 * se_brca1
+upper_bound_log <- coef_brca1 + 1.96 * se_brca1
+
+# Exponentiate to get the 95% CI for the IRR
+lower_bound_IRR <- exp(lower_bound_log)
+upper_bound_IRR <- exp(upper_bound_log)
+
+# Print the 95% CI for the IRR of BRCA1
+cat("95% CI for the IRR of BRCA1: (", lower_bound_IRR, ", ", upper_bound_IRR, ")\n")
