@@ -44,6 +44,8 @@ print(colnames(age_gene))
 
 # Drop rows with NA values in "lymph_nodes_examined_positive"
 lymph_gene <- age_gene %>% filter(!is.na(lymph_nodes_examined_positive))
+num_na_dropped <- sum(is.na(lymph_gene$lymph_nodes_examined_positive))
+print(paste("Number of NA values dropped:", num_na_dropped))
 
 # Check the result to confirm NA values were removed
 print(colnames(lymph_gene))
@@ -101,7 +103,7 @@ influencePlot(mod.p)
 influenceIndexPlot(mod.p)
 
 # Who are the influencers?
-lymph_gene[c(109, 227, 314, 1998, 1092),]
+lymph_gene[c(109, 227, 314, 1889, 1092),]
 
 par(mfrow=c(2,2))
 # How do our fitted values and hii look?
@@ -138,3 +140,19 @@ print(aic_values)
 vuong(mod.p, mod.nb)
 vuong(mod.p, mod.zip)
 vuong(mod.nb, mod.zip)
+
+# Extract the coefficient and standard error for BRCA1
+coef_brca1 <- coef(mod.nb)["brca1"]
+se_brca1 <- summary(mod.nb)$coefficients["brca1", "Std. Error"]
+
+# Calculate the 95% CI on the log scale
+lower_bound_log <- coef_brca1 - 1.96 * se_brca1
+upper_bound_log <- coef_brca1 + 1.96 * se_brca1
+
+# Exponentiate to get the 95% CI for the IRR
+lower_bound_IRR <- exp(lower_bound_log)
+upper_bound_IRR <- exp(upper_bound_log)
+
+# Print the 95% CI for the IRR of BRCA1
+cat("95% CI for the IRR of BRCA1: (", lower_bound_IRR, ", ", upper_bound_IRR, ")\n")
+
