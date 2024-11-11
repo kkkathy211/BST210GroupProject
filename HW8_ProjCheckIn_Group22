@@ -32,6 +32,30 @@ print(column_names)
 age_gene <- data[, c(2,29,30,20,32,36,52,67,70:77,106,107,258,259,320,448)]
 print(colnames(age_gene))
 
+############################### Missing data analysis#################################
+# Create a new data frame with rows where tumor_size is NA
+missing_tumor_size_df <- data[is.na(age_gene$tumor_size), ]
+View(missing_tumor_size_df)
+## does it relate to x?
+plot(missing_tumor_size_df$brca1, 
+     xlab = "Index", 
+     ylab = "BRCA1 Expression", 
+     main = "BRCA1 Expression in Individuals with Missing Tumor Size Data", 
+     col = "grey", 
+     pch = 16)
+
+# Create a new data frame with rows where tumor_stage is NA
+missing_tumor_stage_df <- data[is.na(age_gene$tumor_stage), ]
+View(missing_tumor_stage_df)
+colSums(is.na(missing_tumor_stage_df))
+## does it relate to x?
+plot(missing_tumor_stage_df$brca1, 
+     xlab = "Index", 
+     ylab = "BRCA1 Expression", 
+     main = "BRCA1 Expression in Individuals with Missing Tumor Stage Data", 
+     col = "grey", 
+     pch = 16)
+
 ################################ EDA ##############################################
 # The EDA (exploratory data analysis) of exposure and covariates:
 ## The histogram of all the variables of interests
@@ -415,7 +439,7 @@ boxplot(taf1 ~ lymph_nodes_examined_positive, data = age_gene,
         main = "TAF1 Expression by Lymph Nodes Examined Positive", 
         col = "lightblue")
 
-############# QUESTION 1: How the BRCA1 gene expression influence tumor size?####################
+############# QUESTION 1: How does the BRCA1 gene expression influence tumor size? (primary questions)####################
 age_gene_size <- age_gene[!is.na(age_gene$tumor_size), ]
 sum(is.na(age_gene_size$tumor_size))
 age_gene_size$tumor_size[age_gene_size$tumor_stage == 0 & !is.na(age_gene_size$tumor_stage)] # we are curious about when stage = 0, what's its tumor size
@@ -672,8 +696,9 @@ plot(mult_model$fitted.values[,1][order(age_gene_stage$tumor_stage)] ~ sort(age_
 points(mult_model$fitted.values[,2][order(age_gene_stage$tumor_stage)] ~ sort(age_gene_stage$tumor_stag), type="l", col="magenta")
 points(mult_model$fitted.values[,3][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="green")
 points(mult_model$fitted.values[,4][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="yellow")
-points(mult_model$fitted.values[,0][order(age_gene_stage$tumor_stag)]~sort(age_gene_stage$tumor_stag), type="l", col="grey")
-
+legend("topright", 
+       legend = c("Stage 1", "Stage 2", "Stage 3", "Stage 4"), 
+       col = colors, lty = 1, cex = 0.8)
 # Diagnostics:
 library(car)
 par(mfrow=c(1,2))
@@ -869,7 +894,7 @@ anova(multi_final, mult_interact14, test = "Chisq") # does not improve model fit
 
 ### therefore, is brca1*e2f1 the only significant term by stepwise comparison, final model is:
 mult_final_inter <- multinom(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + brca1*e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 + nfkb2 + hdac1 + taf1, data = age_gene_stage)
-
+summary(mult_final_inter)
 
 ################# Fitting the ordinal model#######################################
 # proportional assumption is met!
@@ -892,22 +917,34 @@ summary(ord_full)
 
 ## since model selection could not be done (we didn't figure out how to conduct selection yet)
 # we fit the covariates from the multinomial
-ord_i <- vglm(tumor_stage ~brca1 + age_at_diagnosis + tp53 + rb1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 
+ord_i <- vglm(tumor_stage ~ brca1 + age_at_diagnosis + tp53 + rb1 + e2f1 + e2f2 + e2f4 + e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 
               + nfkb2 + hdac1 + taf1, cumulative(parallel=TRUE, reverse=TRUE), data = age_gene_stage)
 summary(ord_i)
 
 # interaction terms
-ord_interact_all <- vglm(tumor_stage ~ brca1 + brca1*age_at_diagnosis + brca1*tp53 + brca1*rb1 + brca1*e2f2 + brca1*e2f4 + brca1*e2f3 + brca1*e2f6 + brca1*e2f7 + brca1*e2f8 + brca1*nfkb1 
+ord_interact_all <- vglm(tumor_stage ~ brca1 + brca1*age_at_diagnosis + brca1*tp53 + brca1*rb1 +  brca1*e2f1 + brca1*e2f2 + brca1*e2f4 + brca1*e2f3 + brca1*e2f6 + brca1*e2f7 + brca1*e2f8 + brca1*nfkb1 
                      + brca1*nfkb2 + brca1*hdac1 + brca1*taf1, cumulative(parallel=TRUE, reverse=TRUE), data=age_gene_stage)
 summary(ord_interact_all) ## none of the interaction term is significant when adding all together
 
-## we consider to fit the significant interaction in the multinomial
-ord_interact_e2f3 <- vglm(tumor_stage ~ brca1 + tp53 + rb1 + e2f2 + e2f4 + brca1*e2f3 + e2f6 + e2f7 + e2f8 + nfkb1 
+## we consider to fit the significant interaction in the model
+ord_interact_e2f1 <- vglm(tumor_stage ~ brca1 + age_at_diagnosis+ tp53 + rb1 + e2f2 + e2f4 + e2f3+ brca1*e2f1 + e2f6 + e2f7 + e2f8 + nfkb1 
                          + nfkb2 + hdac1 + taf1, cumulative(parallel=TRUE, reverse=TRUE), data=age_gene_stage)
-summary(ord_interact_e2f3)
+summary(ord_interact_e2f1)
+
+# fit the generalized ordinal model
+ord_generalized <- vglm(tumor_stage ~ brca1 + age_at_diagnosis+ tp53 + rb1 + e2f2 + e2f4 + e2f3+ e2f1 + e2f6 + e2f7 + e2f8 + nfkb1 
+                        + nfkb2 + hdac1 + taf1, cumulative(parallel=FALSE, reverse=T), data=age_gene_stage)
+summary(ord_generalized)
+## Interaction term
+ord_generalized_inter <- vglm(tumor_stage ~ brca1 + age_at_diagnosis+ tp53 + rb1 + e2f2 + e2f4 + e2f3+ brca1*e2f1 + e2f6 + e2f7 + e2f8 + nfkb1 
+                        + nfkb2 + hdac1 + taf1, cumulative(parallel=FALSE, reverse=T), data=age_gene_stage)                        
+summary(ord_generalized_inter)
 
 AIC(mult_final_inter)
-AIC(ord_i) #best AIC so far
+AIC(ord_i)
+AIC(ord_interact_e2f1)
+AIC(ord_generalized)
+AIC(ord_generalized_inter)
 
 ############# QUESTION 3: How the BRCA1 gene expression influence lymph nodes counts?####################
 # Drop rows with NA values in "lymph_nodes_examined_positive"
