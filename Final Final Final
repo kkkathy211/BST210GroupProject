@@ -1,0 +1,156 @@
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(car)
+
+
+# Load data
+data <- read.csv("/Users/spectremac/Desktop/Breast_Cancer.csv",na.strings = c("", " "))
+# Clean data (remove rows with missing data)
+colSums(is.na(data))
+
+newdata <- data[, c(1,2,3,4,5,7,8,10,11,12)]
+newdata <- na.omit(newdata)
+head(newdata)
+summary(newdata)
+
+
+## Tumor size
+### histograms of the tumor size
+hist(newdata$Tumor.Size, main = "Histogram of Tumor Size", xlab = "Tumor Size (mm)", col = "grey")
+hist(log(newdata$Tumor.Size), main = "Histogram of Tumor Size", xlab = "Log Tumor Size", col = "skyblue")
+
+### transform the tumor size to be log(tumor_size)
+newdata$tumor_size_log <- log(newdata$Tumor.Size)
+
+# Race (White=3, Black=1, Other=2)
+newdata$Race_factor <- as.factor(factor(newdata$Race))
+
+# MaritalStatus (Maried=2, Divorced=1, Separated=3, Single=4, widowed=5)
+newdata$Martical_status_factor <- as.factor(factor(newdata$Marital.Status))
+
+# Differentiate status
+library(dplyr)
+newdata <- newdata %>%
+  mutate(encoded_differentiate = case_when(
+    differentiate == "Undifferentiated" ~ 1,
+    differentiate == "Poorly differentiated" ~ 2,
+    differentiate == "Moderately differentiated" ~ 3,
+    differentiate == "Well differentiated" ~ 4,
+    TRUE ~ NA_real_  
+  ))
+
+
+# Estrogen status (Positive =1, Negative=0)
+newdata$Estrogen_status_binary <- ifelse(newdata$Estrogen.Status == "Positive", 1, 0)
+
+# Progesterone status (Positive =1, Negative=0)
+newdata$Progesterone_status_binary <- ifelse(newdata$Progesterone.Status == "Positive", 1, 0)
+
+head(newdata)
+
+############### Penalized Model ###########
+
+# Conduct model selection
+## Fit full linear model
+lm_model <- lm(tumor_size_log ~ Age + Race_factor + Martical_status_factor + encoded_differentiate + Estrogen_status_binary + Progesterone_status_binary, data = newdata)
+summary(lm_model)
+vif(lm_model)
+
+## Model select via stepwise:(and shut off all the output)
+stepwise <- step(lm_model, direction=c("both"), trace=0)
+summary(stepwise)
+
+## Model select via backward:
+backward <- step(lm_model, direction=c("backward"), trace=0)
+summary(backward)
+
+## Model select via forward:
+forward <- step(lm_model, direction=c("forward"), trace=0)
+summary(forward)
+
+## Model select via Penalized regression methods
+library(glmnet)
+set.seed(17)
+
+## Prepare X matrix (minus death) for input to glmnet
+temp=newdata[,c("tumor_size_log","Age","Race_factor","Martical_status_factor","encoded_differentiate","Estrogen_status_binary","Progesterone_status_binary")]
+x <- model.matrix(tumor_size_log~., data=temp)[,-c(1)]
+y <- temp$tumor_size_log
+names(x)<- c("Age","Race_factor","Martical_status_factor","encoded_differentiate","Estrogen_status_binary","Progesterone_status_binary")
+ridge.fram <- glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+library(vip)
+vip(ridge.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(ridge.fram)
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+plot(cv.ridge)
+lambda_min_ridge <- cv.ridge$lambda.min
+lambda_1se_ridge <- cv.ridge$lambda.1se
+coef(cv.ridge, s = lambda_min_ridge)
+coef(cv.ridge, s = lambda_1se_ridge)
+
+## LASSO
+lasso.fram = glmnet(x,y, alpha = 1,  family = "gaussian", data=temp)
+vip(lasso.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(lasso.fram)
+cv.lasso <- cv.glmnet(x,y,alpha = 1,family = "gaussian", data=temp)
+lambda_min_lasso <- cv.lasso$lambda.min
+lambda_1se_lasso <- cv.lasso$lambda.1se
+plot(cv.lasso)
+coef(cv.lasso,s=lambda_min_lasso)
+coef(cv.lasso,s=lambda_1se_lasso)
+
+## Elastic Net
+EN.fram = glmnet(x,y, alpha=0.5,  family = "gaussian", data=temp)
+vip(EN.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(EN.fram)
+cv.EN <- cv.glmnet(x,y, alpha=0.5, family = "gaussian", data=temp)
+lambda_min_EN <- cv.EN$lambda.min
+lambda_1se_EN <- cv.ridge$lambda.1se
+plot(cv.EN)
+coef(cv.EN,s=lambda_min_EN)
+coef(cv.EN,s=lambda_1se_EN)
+
+## Comparing all three methods
+
+par(mfrow=c(1,3))
+
+plot(ridge.fram)
+plot(lasso.fram)
+plot(EN.fram)
+
+plot(cv.ridge)
+plot(cv.lasso)
+plot(cv.EN)
+
+## Minimize deviance based on 1 standard error from lambda criteria 
+out <- cbind(coef(cv.ridge,s=lambda_1se_ridge),coef(cv.lasso,s=lambda_1se_lasso),
+             coef(cv.EN,s=lambda_1se_EN))
+colnames(out) <- c("Ridge", "LASSO", "EN")
+out
+
+## Minimize deviance based on min lambda criteria is used because 1se is too restrictive:
+out <- cbind(coef(cv.ridge, s = "lambda.min"),coef(cv.lasso, s = "lambda.min"),coef(cv.EN, s = "lambda.min"))
+out
+
+
+############### Linear Model ##############
+
+model_linear <- lm(tumor_size_log ~ Race_factor + Age, data=newdata)
+summary(model_linear)
+
+
+model_linear1 <- lm(tumor_size_log ~ Race_factor + Age + Race_factor*Age, data=newdata)
+summary(model_linear1)
+
+
+model_linear <- lm(tumor_size_log ~ as.factor(Race) + Age, data=newdata)
+summary(model_linear)
+
+
