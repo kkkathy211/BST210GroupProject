@@ -1,0 +1,212 @@
+# Libraries
+library(ggplot2)
+library(dplyr)
+library(gam)
+library(splines)
+library(splines2)  
+library(car)
+
+
+# Load data
+data <- read.csv("/cloud/project/Breast_Cancer.csv",na.strings = c("", " "))
+# Clean data (remove rows with missing data)
+colSums(is.na(data))
+
+newdata <- data[, c(1,2,3,4,5,7,8,10,11,12)]
+newdata <- na.omit(newdata)
+head(newdata)
+summary(newdata)
+
+
+## Tumor size
+### histograms of the tumor size
+hist(newdata$Tumor.Size, main = "Histogram of Tumor Size", xlab = "Tumor Size (mm)", col = "grey")
+hist(log(newdata$Tumor.Size), main = "Histogram of Tumor Size", xlab = "Log Tumor Size", col = "skyblue")
+
+### transform the tumor size to be log(tumor_size)
+newdata$tumor_size_log <- log(newdata$Tumor.Size)
+
+# Race (White=3, Black=1, Other=2)
+newdata$Race_factor <- as.factor(factor(newdata$Race))
+
+# MaritalStatus (Maried=2, Divorced=1, Separated=3, Single=4, widowed=5)
+newdata$Marital_status_factor <- as.factor(factor(newdata$Marital.Status))
+
+# Differentiate status
+library(dplyr)
+newdata <- newdata %>%
+  mutate(encoded_differentiate = case_when(
+    differentiate == "Undifferentiated" ~ 1,
+    differentiate == "Poorly differentiated" ~ 2,
+    differentiate == "Moderately differentiated" ~ 3,
+    differentiate == "Well differentiated" ~ 4,
+    TRUE ~ NA_real_  
+  ))
+
+
+# Estrogen status (Positive =1, Negative=0)
+newdata$Estrogen_status_binary <- ifelse(newdata$Estrogen.Status == "Positive", 1, 0)
+
+# Progesterone status (Positive =1, Negative=0)
+newdata$Progesterone_status_binary <- ifelse(newdata$Progesterone.Status == "Positive", 1, 0)
+
+head(newdata)
+
+############### Penalized Model ###########
+
+# Conduct model selection
+## Fit full linear model
+lm_model <- lm(tumor_size_log ~ Age + Race_factor + Marital_status_factor + encoded_differentiate + Estrogen_status_binary + Progesterone_status_binary, data = newdata)
+summary(lm_model)
+vif(lm_model)
+
+## Model select via stepwise:(and shut off all the output)
+stepwise <- step(lm_model, direction=c("both"), trace=0)
+summary(stepwise)
+
+## Model select via backward:
+backward <- step(lm_model, direction=c("backward"), trace=0)
+summary(backward)
+
+## Model select via forward:
+forward <- step(lm_model, direction=c("forward"), trace=0)
+summary(forward)
+
+## Model select via Penalized regression methods
+library(glmnet)
+set.seed(17)
+
+## Prepare X matrix (minus death) for input to glmnet
+temp=newdata[,c("tumor_size_log","Age","Race_factor","Maritcal_status_factor","encoded_differentiate","Estrogen_status_binary","Progesterone_status_binary")]
+x <- model.matrix(tumor_size_log~., data=temp)[,-c(1)]
+y <- temp$tumor_size_log
+names(x)<- c("Age","Race_factor","Marital_status_factor","encoded_differentiate","Estrogen_status_binary","Progesterone_status_binary")
+ridge.fram <- glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+library(vip)
+vip(ridge.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(ridge.fram)
+cv.ridge <- cv.glmnet(x, y, alpha = 0, family = "gaussian", data = temp,na.rm = na.rm)
+plot(cv.ridge)
+lambda_min_ridge <- cv.ridge$lambda.min
+lambda_1se_ridge <- cv.ridge$lambda.1se
+coef(cv.ridge, s = lambda_min_ridge)
+coef(cv.ridge, s = lambda_1se_ridge)
+
+## LASSO
+lasso.fram = glmnet(x,y, alpha = 1,  family = "gaussian", data=temp)
+vip(lasso.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(lasso.fram)
+cv.lasso <- cv.glmnet(x,y,alpha = 1,family = "gaussian", data=temp)
+lambda_min_lasso <- cv.lasso$lambda.min
+lambda_1se_lasso <- cv.lasso$lambda.1se
+plot(cv.lasso)
+coef(cv.lasso,s=lambda_min_lasso)
+coef(cv.lasso,s=lambda_1se_lasso)
+
+## Elastic Net
+EN.fram = glmnet(x,y, alpha=0.5,  family = "gaussian", data=temp)
+vip(EN.fram, num_features=12, geom="point", include_type=TRUE)
+par(mfrow=c(1,2))
+plot(EN.fram)
+cv.EN <- cv.glmnet(x,y, alpha=0.5, family = "gaussian", data=temp)
+lambda_min_EN <- cv.EN$lambda.min
+lambda_1se_EN <- cv.ridge$lambda.1se
+plot(cv.EN)
+coef(cv.EN,s=lambda_min_EN)
+coef(cv.EN,s=lambda_1se_EN)
+
+## Comparing all three methods
+
+par(mfrow=c(1,3))
+
+plot(ridge.fram)
+plot(lasso.fram)
+plot(EN.fram)
+
+plot(cv.ridge)
+plot(cv.lasso)
+plot(cv.EN)
+
+## Minimize deviance based on 1 standard error from lambda criteria 
+out <- cbind(coef(cv.ridge,s=lambda_1se_ridge),coef(cv.lasso,s=lambda_1se_lasso),
+             coef(cv.EN,s=lambda_1se_EN))
+colnames(out) <- c("Ridge", "LASSO", "EN")
+out
+
+## Minimize deviance based on min lambda criteria is used because 1se is too restrictive:
+out <- cbind(coef(cv.ridge, s = "lambda.min"),coef(cv.lasso, s = "lambda.min"),coef(cv.EN, s = "lambda.min"))
+out
+
+
+############### The Multiple Model & Diagnosis ##############
+
+model_full <- lm(tumor_size_log ~ encoded_differentiate+as.factor(Race) + Age + as.factor(Marital_status_factor)+ Progesterone_status_binary, data=newdata)
+summary(model_full)
+
+############### Diagnosis for the multiple linear model
+
+####### Generating residuals and diagnostic quantities
+plot(model_full)
+res<-residuals(model_full)
+fit<-fitted.values(model_full)
+mystd <- res/(sqrt(sum(res^2)/(length(res)-1-4))) # standardized 
+stdres<-rstandard(model_full) # internally stud
+stures<-rstudent(model_full) # externally stud
+hat<-hatvalues(model_full)
+cooksd<-cooks.distance(model_full)
+# Creating scatterplots of the residual values
+plot(res,stdres)
+plot(res,stures)
+plot(res,mystd)
+plot(mystd,stures)
+plot(mystd,stdres)
+plot(stdres,stures)
+
+# Assessing normality of the residuals
+hist(stures,probability = TRUE)
+curve(dnorm,from=-4,to=4,add=TRUE)
+qqnorm(stures)
+abline(0,1)
+shapiro.test(stures)
+
+# Examining observations with large internally/externally studentized residuals
+newdata2<-cbind(newdata,stdres,stures,)
+newdata2[abs(stdres)>2,]
+newdata2[abs(stures)>2,]
+newdata2[abs(stdres)>3,]
+newdata2[abs(stures)>3,]
+
+# See chart created in 2D for assessment of leverage (hat values)
+summary(hat)
+mean(hat)
+(thresh<-length(coef(model_full))/length(hat)) #(p+1)/n
+
+# Creating a histogram & boxplot of the hat values
+hist(hat)
+boxplot(hat)
+newdata2[hat>2*thresh,]
+newdata2[hat>4*thresh,]
+
+# Creating plots of the Cook's distances
+summary(cooksd)
+plot(model_full, 4) 
+abline(h=4/(nrow(newdata2)-8), col='red')
+hist(cooksd)
+boxplot(cooksd)
+n<-length(cooksd)
+newdata2[cooksd>4/n,]
+newdata2[cooksd>12/n,]
+sort(cooks.distance(model_full), decreasing=T)[1:3] 
+
+# Compare the model run on all observations to the model with outliers omitted
+summary(model_full)
+hat_thresh<-length(coef(model_full))/length(hat)
+d_no_outliers<-subset(newdata2,abs(stures)<=3 & hat<=4*hat_thresh & cooksd<=12/n)
+#how many outliers were dropped?
+nrow(newdata2)-nrow(d_no_outliers)
+summary(lm(tumor_size_log ~ Age + Race_factor + Marital_status_factor + encoded_differentiate + Progesterone_status_binary,dat=d_no_outliers))
+#not much change in results
+
+################# Effect Modification ##################################
