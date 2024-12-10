@@ -172,7 +172,7 @@ abline(0,1)
 shapiro.test(stures)
 
 # Examining observations with large internally/externally studentized residuals
-newdata2<-cbind(newdata,stdres,stures,)
+newdata2<-cbind(newdata,stdres,stures,cooksd)
 newdata2[abs(stdres)>2,]
 newdata2[abs(stures)>2,]
 newdata2[abs(stdres)>3,]
